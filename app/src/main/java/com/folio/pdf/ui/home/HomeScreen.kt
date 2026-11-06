@@ -17,24 +17,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Compress
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MergeType
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
@@ -47,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,10 +63,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folio.pdf.FolioApp
 import com.folio.pdf.data.db.RecentDocument
+import com.folio.pdf.ui.components.DocumentCard
 import com.folio.pdf.ui.components.EmptyState
 import com.folio.pdf.ui.components.PdfThumbnail
-import com.folio.pdf.util.formatFileSize
-import com.folio.pdf.util.formatRelativeTime
 import kotlinx.coroutines.launch
 
 private val PDF_MIME = arrayOf("application/pdf")
@@ -78,6 +75,7 @@ private val PDF_MIME = arrayOf("application/pdf")
 fun HomeScreen(
     onOpenDocument: (Uri) -> Unit,
     onBrowse: () -> Unit,
+    onHistory: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val app = LocalContext.current.applicationContext as FolioApp
@@ -141,6 +139,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("Recent", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onHistory) { Text("History") }
                     FilterChip(
                         selected = state.filter == RecentFilter.ALL,
                         onClick = { vm.setFilter(RecentFilter.ALL) },
@@ -170,9 +169,16 @@ fun HomeScreen(
                         )
                     }
                 }
-            } else {
-                items(state.documents, key = { it.uri }) { doc ->
-                    RecentDocumentRow(
+            } else if (state.documents.isNotEmpty()) {
+                val first = state.documents.first()
+                val showContinue = state.filter == RecentFilter.ALL && first.pageCount > 1 && first.lastPage > 0
+                if (showContinue) {
+                    item(key = "continue") {
+                        ContinueReadingCard(first, onClick = { onOpenDocument(Uri.parse(first.uri)) })
+                    }
+                }
+                items(if (showContinue) state.documents.drop(1) else state.documents, key = { it.uri }) { doc ->
+                    DocumentCard(
                         doc = doc,
                         onClick = { onOpenDocument(Uri.parse(doc.uri)) },
                         onToggleFavorite = { vm.toggleFavorite(doc.uri) },
@@ -247,70 +253,34 @@ private fun ActionTile(
 }
 
 @Composable
-private fun RecentDocumentRow(
-    doc: RecentDocument,
-    onClick: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    onRemove: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var menuOpen by remember { mutableStateOf(false) }
+private fun ContinueReadingCard(doc: RecentDocument, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
     ) {
-        Row(
-            modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             PdfThumbnail(doc.uri)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Continue reading", style = MaterialTheme.typography.labelMedium)
                 Text(
                     doc.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val details = listOfNotNull(
-                    if (doc.pageCount > 0) "Page ${doc.lastPage + 1} of ${doc.pageCount}" else null,
-                    formatFileSize(doc.sizeBytes).ifEmpty { null },
-                    formatRelativeTime(doc.lastOpenedAt).ifEmpty { null },
-                ).joinToString(" · ")
-                Text(
-                    details,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Text("Page ${doc.lastPage + 1} of ${doc.pageCount}", style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(
+                    progress = { (doc.lastPage + 1f) / doc.pageCount },
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 )
-                if (doc.pageCount > 1) {
-                    LinearProgressIndicator(
-                        progress = { (doc.lastPage + 1f) / doc.pageCount },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
-                    )
-                }
             }
-            IconButton(onClick = onToggleFavorite) {
-                if (doc.isFavorite) {
-                    Icon(Icons.Filled.Star, "Remove from favourites", tint = MaterialTheme.colorScheme.tertiary)
-                } else {
-                    Icon(Icons.Outlined.StarBorder, "Add to favourites")
-                }
-            }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Outlined.MoreVert, "More options")
-                }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Remove from recents") },
-                        leadingIcon = { Icon(Icons.Outlined.Delete, null) },
-                        onClick = { menuOpen = false; onRemove() },
-                    )
-                }
-            }
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
         }
     }
 }

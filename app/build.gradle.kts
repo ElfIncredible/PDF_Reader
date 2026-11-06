@@ -13,8 +13,8 @@ android {
         applicationId = "com.folio.pdf"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-phase1"
+        versionCode = 2
+        versionName = "0.2.0-phase2"
     }
 
     buildTypes {
@@ -63,4 +63,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.documentfile)
     implementation(libs.kotlinx.coroutines.android)
+
+    // PDF structure: text, outline (Phase 2); editing & toolkit (Phases 3-6)
+    implementation(libs.pdfbox.android)
 }

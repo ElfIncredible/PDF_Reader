@@ -10,6 +10,10 @@ class RecentsRepository(private val dao: RecentDocumentDao) {
 
     fun observeFavorites(): Flow<List<RecentDocument>> = dao.observeFavorites()
 
+    fun observeAll(): Flow<List<RecentDocument>> = dao.observeAll()
+
+    fun observe(uri: String): Flow<RecentDocument?> = dao.observe(uri)
+
     suspend fun get(uri: String): RecentDocument? = dao.get(uri)
 
     /** Records an open, keeping reading progress and favourite flag if we've seen it before. */

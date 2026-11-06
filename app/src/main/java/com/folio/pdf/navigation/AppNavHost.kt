@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.folio.pdf.ui.browser.BrowserScreen
+import com.folio.pdf.ui.history.HistoryScreen
 import com.folio.pdf.ui.home.HomeScreen
 import com.folio.pdf.ui.settings.SettingsScreen
 import com.folio.pdf.ui.viewer.ViewerScreen
@@ -18,6 +19,7 @@ object Routes {
     const val HOME = "home"
     const val BROWSER = "browser"
     const val SETTINGS = "settings"
+    const val HISTORY = "history"
     const val VIEWER = "viewer?uri={uri}"
 
     fun viewer(uri: Uri) = "viewer?uri=${Uri.encode(uri.toString())}"
@@ -45,11 +47,18 @@ fun AppNavHost(
             HomeScreen(
                 onOpenDocument = openDocument,
                 onBrowse = { navController.navigate(Routes.BROWSER) },
+                onHistory = { navController.navigate(Routes.HISTORY) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
         composable(Routes.BROWSER) {
             BrowserScreen(
+                onOpenDocument = openDocument,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.HISTORY) {
+            HistoryScreen(
                 onOpenDocument = openDocument,
                 onBack = { navController.popBackStack() },
             )

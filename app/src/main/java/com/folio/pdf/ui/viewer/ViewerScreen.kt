@@ -1,73 +1,41 @@
 package com.folio.pdf.ui.viewer
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.FindInPage
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.ZoomIn
-import androidx.compose.material.icons.outlined.ZoomOut
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,48 +44,34 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.folio.pdf.FolioApp
-import com.folio.pdf.data.AppSettings
-import com.folio.pdf.pdf.PdfFile
+import com.folio.pdf.data.ColorMode
+import com.folio.pdf.data.ScrollMode
 import com.folio.pdf.ui.components.EmptyState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
-
-private const val MIN_ZOOM = 1f
-private const val MAX_ZOOM = 5f
-private const val DOUBLE_TAP_ZOOM = 2.5f
 
 @Composable
 fun ViewerScreen(uri: Uri, onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as FolioApp
     val vm: ViewerViewModel = viewModel(
         key = uri.toString(),
-        factory = viewModelFactory {
-            initializer { ViewerViewModel(uri, app, app.container.documents, app.container.recents) }
-        },
+        factory = viewModelFactory { initializer { ViewerViewModel(uri, app, app.container) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
-    val settings by app.container.settings.settings.collectAsStateWithLifecycle(initialValue = AppSettings())
+    val prefs by vm.prefs.collectAsStateWithLifecycle()
 
     val view = LocalView.current
-    DisposableEffect(settings.keepScreenOn) {
-        view.keepScreenOn = settings.keepScreenOn
+    DisposableEffect(prefs.keepScreenOn) {
+        view.keepScreenOn = prefs.keepScreenOn
         onDispose { view.keepScreenOn = false }
     }
 
@@ -133,17 +87,13 @@ fun ViewerScreen(uri: Uri, onBack: () -> Unit) {
                 modifier = Modifier.align(Alignment.Center),
             ) { Button(onClick = onBack) { Text("Go back") } }
         }
-        is ViewerUiState.Ready -> PdfReader(s, uri, onBack, vm::onPageChanged)
+        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, onBack)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SimpleViewerScaffold(
-    title: String,
-    onBack: () -> Unit,
-    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
-) {
+private fun SimpleViewerScaffold(title: String, onBack: () -> Unit, content: @Composable BoxScope.() -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -156,307 +106,298 @@ private fun SimpleViewerScaffold(
     ) { padding -> Box(Modifier.fillMaxSize().padding(padding), content = content) }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PdfReader(
     state: ViewerUiState.Ready,
+    vm: ViewerViewModel,
     uri: Uri,
+    prefs: ReaderPrefs,
     onBack: () -> Unit,
-    onPageChanged: (Int) -> Unit,
 ) {
     val doc = state.document
     val context = LocalContext.current
-    val density = LocalDensity.current
+    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
 
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = state.initialPage)
-    val hScroll = rememberScrollState()
+    val index by vm.index.collectAsStateWithLifecycle()
+    val search by vm.search.collectAsStateWithLifecycle()
+    val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
+    val isFavourite by vm.isFavorite.collectAsStateWithLifecycle()
+    val outline by vm.outline.collectAsStateWithLifecycle()
+
+    var page by rememberSaveable { mutableIntStateOf(state.initialPage) }
+    var navigator by remember { mutableStateOf<PageNavigator?>(null) }
+    val zoom = remember { ContinuousZoom() }
+
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var searchText by rememberSaveable { mutableStateOf("") }
+    var selection by remember { mutableStateOf<PageSelection?>(null) }
     var showGoTo by remember { mutableStateOf(false) }
+    var showNav by remember { mutableStateOf(false) }
+    var showModes by remember { mutableStateOf(false) }
+    var showResults by remember { mutableStateOf(false) }
 
-    // `zoom` follows the fingers; `renderZoom` trails it so we only re-render
-    // sharp bitmaps once the pinch settles.
-    var zoom by remember { mutableFloatStateOf(1f) }
-    var renderZoom by remember { mutableFloatStateOf(1f) }
-    LaunchedEffect(zoom) {
-        delay(220)
-        renderZoom = zoom
+    fun jumpTo(target: Int, yFraction: Float = 0f) {
+        scope.launch { navigator?.goTo(target.coerceIn(0, doc.pageCount - 1), yFraction) }
     }
 
-    val currentPage by remember { derivedStateOf { listState.mostVisibleIndex() } }
-    LaunchedEffect(currentPage) { onPageChanged(currentPage) }
+    fun toast(message: String) {
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            snackbar.showSnackbar(message)
+        }
+    }
+
+    fun closeSearch() {
+        searching = false
+        searchText = ""
+        vm.setQuery("")
+    }
+
+    ImmersiveEffect(immersive = !chromeVisible && selection == null && !searching)
+
+    // Follow the current search hit.
+    val activeHit = search.currentHit
+    LaunchedEffect(activeHit) {
+        val hit = activeHit ?: return@LaunchedEffect
+        val top = vm.pageText(hit.page)?.rects(hit.range)?.firstOrNull()?.top ?: 0f
+        navigator?.goTo(hit.page, top)
+    }
+
+    val hitsByPage = remember(search.hits) { search.hits.groupBy { it.page } }
+    val env = PageEnv(
+        doc = doc,
+        colorMode = prefs.colorMode,
+        placeholderAspect = state.placeholderAspect,
+        textVersion = index.done,
+        pageText = vm::pageText,
+        hitsByPage = hitsByPage,
+        activeHit = activeHit,
+        selection = selection,
+        onSelectionChange = { selection = it },
+        onTap = {
+            if (selection != null) selection = null else chromeVisible = !chromeVisible
+        },
+        onNoText = {
+            toast(
+                when {
+                    !index.finished -> "Still reading this document's text, try again in a moment"
+                    index.failed -> "Couldn't read the text in this PDF"
+                    else -> "No selectable text here. It may be a scan; OCR arrives in Phase 5"
+                },
+            )
+        },
+    )
+    val onPageChanged: (Int) -> Unit = {
+        page = it
+        vm.onPageChanged(it)
+    }
+
+    BackHandler(enabled = selection != null || searching) {
+        if (selection != null) selection = null else closeSearch()
+    }
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            .background(
+                if (prefs.colorMode == ColorMode.NIGHT) Color(0xFF000000)
+                else MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
     ) {
-        BoxWithConstraints(
-            Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    // Two-finger pinch. Watching the Initial pass lets us grab the gesture
-                    // before the list turns it into a scroll; one-finger drags pass through.
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                        do {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            if (event.changes.count { it.pressed } >= 2) {
-                                val factor = event.calculateZoom()
-                                val old = zoom
-                                val new = (old * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-                                if (new != old) {
-                                    val c = event.calculateCentroid(useCurrent = true)
-                                    val ratio = new / old
-                                    zoom = new
-                                    // Keep the point under the fingers roughly in place.
-                                    hScroll.dispatchRawDelta((hScroll.value + c.x) * (ratio - 1f))
-                                    listState.dispatchRawDelta(
-                                        (listState.firstVisibleItemScrollOffset + c.y) * (ratio - 1f),
-                                    )
-                                }
-                                event.changes.forEach { if (it.positionChanged()) it.consume() }
-                            }
-                        } while (event.changes.any { it.pressed })
-                    }
-                },
-        ) {
-            val viewportWidth = maxWidth
-            val pagePadding = 8.dp
-            val renderWidthPx = with(density) {
-                ((viewportWidth - pagePadding * 2) * renderZoom).toPx().roundToInt()
-            }
-            val bars = WindowInsets.systemBars.asPaddingValues()
-
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .horizontalScroll(hScroll, enabled = zoom > 1.01f),
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.width(viewportWidth * zoom).fillMaxHeight(),
-                    contentPadding = PaddingValues(
-                        top = bars.calculateTopPadding() + 64.dp,
-                        bottom = bars.calculateBottomPadding() + 88.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp * zoom),
-                ) {
-                    items(count = doc.pageCount, key = { it }) { index ->
-                        PdfPage(
-                            doc = doc,
-                            index = index,
-                            renderWidthPx = renderWidthPx,
-                            placeholderAspect = state.placeholderAspect,
-                            horizontalPadding = pagePadding * zoom,
-                            onTap = { chromeVisible = !chromeVisible },
-                            onDoubleTap = { zoom = if (zoom > 1.05f) 1f else DOUBLE_TAP_ZOOM },
-                        )
-                    }
-                }
-            }
+        when (prefs.scrollMode) {
+            ScrollMode.VERTICAL -> VerticalReader(
+                env = env,
+                zoom = zoom,
+                initialPage = page,
+                onNavigator = { navigator = it },
+                onPageChanged = onPageChanged,
+            )
+            ScrollMode.PAGED -> PagedReader(
+                env = env,
+                initialPage = page,
+                onNavigator = { navigator = it },
+                onPageChanged = onPageChanged,
+            )
         }
 
-        // Top bar
+        // ---- Top: reader bar / search bar / selection bar
         AnimatedVisibility(
-            visible = chromeVisible,
+            visible = chromeVisible || searching || selection != null,
             enter = fadeIn() + slideInVertically { -it },
             exit = fadeOut() + slideOutVertically { -it },
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            TopAppBar(
-                title = { Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                },
-                actions = {
-                    IconButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(MIN_ZOOM) }, enabled = zoom > MIN_ZOOM) {
-                        Icon(Icons.Outlined.ZoomOut, "Zoom out")
+            Column {
+                val sel = selection
+                when {
+                    sel != null -> {
+                        val selectedText = vm.pageText(sel.page)?.slice(sel.range).orEmpty()
+                        SelectionTopBar(
+                            preview = selectedText.replace('\n', ' '),
+                            onClose = { selection = null },
+                            onCopy = {
+                                clipboard.setText(AnnotatedString(selectedText))
+                                selection = null
+                                toast("Copied")
+                            },
+                            onShare = {
+                                shareText(context, selectedText)
+                                selection = null
+                            },
+                            onSearch = {
+                                val q = selectedText.replace(Regex("\\s+"), " ").take(120)
+                                selection = null
+                                searching = true
+                                searchText = q
+                                vm.setQuery(q)
+                            },
+                            onSelectAll = {
+                                val t = vm.pageText(sel.page)
+                                if (t != null && t.text.isNotEmpty()) {
+                                    selection = PageSelection(sel.page, 0 until t.text.length)
+                                }
+                            },
+                        )
                     }
-                    IconButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(MAX_ZOOM) }, enabled = zoom < MAX_ZOOM) {
-                        Icon(Icons.Outlined.ZoomIn, "Zoom in")
+                    searching -> {
+                        SearchTopBar(
+                            query = searchText,
+                            onQueryChange = { searchText = it; vm.setQuery(it) },
+                            state = search,
+                            onPrevious = vm::previousHit,
+                            onNext = vm::nextHit,
+                            onShowResults = { showResults = true },
+                            onClose = ::closeSearch,
+                        )
+                        SearchStatus(index, search)
                     }
-                    IconButton(onClick = { showGoTo = true }) { Icon(Icons.Outlined.FindInPage, "Go to page") }
-                    IconButton(onClick = { sharePdf(context, uri, state.title) }) {
-                        Icon(Icons.Outlined.Share, "Share")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                ),
-            )
+                    else -> ReaderTopBar(
+                        title = state.title,
+                        bookmarked = bookmarks.any { it.page == page },
+                        favourite = isFavourite,
+                        onBack = onBack,
+                        onSearch = { searching = true },
+                        onToggleBookmark = {
+                            val wasBookmarked = bookmarks.any { it.page == page }
+                            vm.toggleBookmark(page)
+                            toast(if (wasBookmarked) "Bookmark removed" else "Page ${page + 1} bookmarked")
+                        },
+                        onContents = { showNav = true },
+                        onReadingMode = { showModes = true },
+                        onGoToPage = { showGoTo = true },
+                        onToggleFavourite = {
+                            vm.toggleFavorite()
+                            toast(if (isFavourite) "Removed from favourites" else "Added to favourites")
+                        },
+                        onShare = { sharePdf(context, uri, state.title) },
+                    )
+                }
+            }
         }
 
-        // Bottom page bar
+        // ---- Bottom: page bar, or a small page pill in full-screen
         AnimatedVisibility(
-            visible = chromeVisible,
+            visible = chromeVisible && selection == null,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             PageBar(
-                current = currentPage,
+                current = page,
                 count = doc.pageCount,
-                onSeek = { page -> scope.launch { listState.scrollToItem(page) } },
+                onSeek = { jumpTo(it) },
                 onTapIndicator = { showGoTo = true },
+                zoom = if (prefs.scrollMode == ScrollMode.VERTICAL) zoom else null,
             )
         }
-
-        // Page pill stays visible when chrome is hidden, for orientation.
         AnimatedVisibility(
-            visible = !chromeVisible,
+            visible = !chromeVisible && selection == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp),
         ) {
-            PagePill(currentPage + 1, doc.pageCount)
+            PagePill(page + 1, doc.pageCount)
         }
+
+        SnackbarHost(
+            snackbar,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp),
+        )
     }
 
+    // ---- Dialogs & sheets
     if (showGoTo) {
         GoToPageDialog(
             pageCount = doc.pageCount,
-            current = currentPage + 1,
+            current = page + 1,
             onDismiss = { showGoTo = false },
-            onGo = { page ->
+            onGo = { p ->
                 showGoTo = false
-                scope.launch { listState.scrollToItem(page - 1) }
+                jumpTo(p - 1)
             },
         )
     }
-}
-
-@Composable
-private fun PdfPage(
-    doc: PdfFile,
-    index: Int,
-    renderWidthPx: Int,
-    placeholderAspect: Float,
-    horizontalPadding: androidx.compose.ui.unit.Dp,
-    onTap: () -> Unit,
-    onDoubleTap: () -> Unit,
-) {
-    var aspect by remember(index) { mutableFloatStateOf(placeholderAspect) }
-    // Keep showing the previous bitmap while a sharper one renders, so zooming never flickers.
-    var bitmap by remember(index) { mutableStateOf<Bitmap?>(doc.cachedPage(index, renderWidthPx)) }
-
-    LaunchedEffect(index, renderWidthPx) {
-        doc.pageSize(index)?.let { aspect = it.aspect }
-        doc.renderPage(index, renderWidthPx)?.let { bitmap = it }
+    if (showNav) {
+        NavigationSheet(
+            doc = doc,
+            colorMode = prefs.colorMode,
+            currentPage = page,
+            outline = outline,
+            bookmarks = bookmarks,
+            onGoTo = { p ->
+                showNav = false
+                jumpTo(p)
+            },
+            onDeleteBookmark = vm::removeBookmark,
+            onDismiss = { showNav = false },
+        )
     }
-
-    Box(Modifier.fillMaxWidth().padding(horizontal = horizontalPadding)) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f / aspect)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { onTap() }, onDoubleTap = { onDoubleTap() })
-                },
-            color = Color.White,
-            shadowElevation = 2.dp,
-        ) {
-            val bmp = bitmap
-            if (bmp != null) {
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Page ${index + 1}",
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp, color = Color.LightGray)
-                }
-            }
-        }
+    if (showModes) {
+        ReadingModeSheet(
+            prefs = prefs,
+            onScrollMode = vm::setScrollMode,
+            onColorMode = vm::setColorMode,
+            onKeepScreenOn = vm::setKeepScreenOn,
+            onDismiss = { showModes = false },
+        )
     }
-}
-
-@Composable
-private fun PageBar(current: Int, count: Int, onSeek: (Int) -> Unit, onTapIndicator: () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onTapIndicator) { Text("${current + 1} / $count") }
-            if (count > 1) {
-                // Local slider state so dragging is smooth; seek on every change.
-                var dragging by remember { mutableStateOf<Float?>(null) }
-                Slider(
-                    value = dragging ?: current.toFloat(),
-                    onValueChange = { v -> dragging = v; onSeek(v.roundToInt()) },
-                    onValueChangeFinished = { dragging = null },
-                    valueRange = 0f..(count - 1).toFloat(),
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PagePill(page: Int, count: Int) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.8f),
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-    ) {
-        Text(
-            "$page / $count",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+    if (showResults && search.hits.isNotEmpty()) {
+        SearchResultsSheet(
+            state = search,
+            onSelect = { i ->
+                showResults = false
+                vm.selectHit(i)
+            },
+            onDismiss = { showResults = false },
         )
     }
 }
 
-@Composable
-private fun GoToPageDialog(pageCount: Int, current: Int, onDismiss: () -> Unit, onGo: (Int) -> Unit) {
-    var text by remember { mutableStateOf(current.toString()) }
-    val page = text.toIntOrNull()
-    val valid = page != null && page in 1..pageCount
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Go to page") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { v -> text = v.filter(Char::isDigit).take(6) },
-                    singleLine = true,
-                    isError = text.isNotEmpty() && !valid,
-                    supportingText = { Text("1 – $pageCount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = { page?.let(onGo) }, enabled = valid) { Text("Go") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-/** The page whose area covers the vertical centre of the viewport. */
-private fun LazyListState.mostVisibleIndex(): Int {
-    val info = layoutInfo
-    val centre = (info.viewportStartOffset + info.viewportEndOffset) / 2
-    return info.visibleItemsInfo.firstOrNull { centre in it.offset..(it.offset + it.size) }?.index
-        ?: firstVisibleItemIndex
-}
-
-private fun sharePdf(context: android.content.Context, uri: Uri, title: String) {
+private fun sharePdf(context: Context, uri: Uri, title: String) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "application/pdf"
         putExtra(Intent.EXTRA_STREAM, uri)
         putExtra(Intent.EXTRA_SUBJECT, title)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
+    startChooser(context, send, "Share PDF")
+}
+
+private fun shareText(context: Context, text: String) {
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    startChooser(context, send, "Share text")
+}
+
+private fun startChooser(context: Context, intent: Intent, title: String) {
     try {
-        context.startActivity(Intent.createChooser(send, "Share PDF"))
+        context.startActivity(Intent.createChooser(intent, title))
     } catch (_: ActivityNotFoundException) {
-        // Nothing can receive it; nothing to do.
+        // Nothing can receive it.
     }
 }
