@@ -61,10 +61,16 @@ import com.folio.pdf.data.ScrollMode
 import com.folio.pdf.ui.components.EmptyState
 import com.folio.pdf.ui.editor.EditorContent
 import com.folio.pdf.ui.editor.UnsavedChangesDialog
+import com.folio.pdf.ui.tools.ToolKind
 import kotlinx.coroutines.launch
 
 @Composable
-fun ViewerScreen(uri: Uri, onBack: () -> Unit, onOpenDocument: (Uri) -> Unit) {
+fun ViewerScreen(
+    uri: Uri,
+    onBack: () -> Unit,
+    onOpenDocument: (Uri) -> Unit,
+    onOpenTool: (ToolKind, Uri) -> Unit,
+) {
     val app = LocalContext.current.applicationContext as FolioApp
     val vm: ViewerViewModel = viewModel(
         key = uri.toString(),
@@ -91,7 +97,7 @@ fun ViewerScreen(uri: Uri, onBack: () -> Unit, onOpenDocument: (Uri) -> Unit) {
                 modifier = Modifier.align(Alignment.Center),
             ) { Button(onClick = onBack) { Text("Go back") } }
         }
-        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, onBack, onOpenDocument)
+        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, onBack, onOpenDocument, onOpenTool)
     }
 }
 
@@ -118,6 +124,7 @@ private fun PdfReader(
     prefs: ReaderPrefs,
     onBack: () -> Unit,
     onOpenDocument: (Uri) -> Unit,
+    onOpenTool: (ToolKind, Uri) -> Unit,
 ) {
     val doc = state.document
     val context = LocalContext.current
@@ -360,6 +367,11 @@ private fun PdfReader(
                             toast(if (isFavourite) "Removed from favourites" else "Added to favourites")
                         },
                         onShare = { sharePdf(context, uri, state.title) },
+                        onTool = { kind ->
+                            // Tools work on the saved file, so unsaved annotations must be saved first.
+                            if (editor.dirty) toast("Save your edits first (✏️ → 💾), then use ${kind.title}")
+                            else onOpenTool(kind, uri)
+                        },
                     )
                 }
             }

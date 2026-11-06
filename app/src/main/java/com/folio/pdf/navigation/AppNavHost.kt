@@ -13,6 +13,10 @@ import com.folio.pdf.ui.browser.BrowserScreen
 import com.folio.pdf.ui.history.HistoryScreen
 import com.folio.pdf.ui.home.HomeScreen
 import com.folio.pdf.ui.settings.SettingsScreen
+import com.folio.pdf.ui.tools.OrganizeScreen
+import com.folio.pdf.ui.tools.ToolKind
+import com.folio.pdf.ui.tools.ToolScreen
+import com.folio.pdf.ui.tools.ToolsHubScreen
 import com.folio.pdf.ui.viewer.ViewerScreen
 
 object Routes {
@@ -20,9 +24,14 @@ object Routes {
     const val BROWSER = "browser"
     const val SETTINGS = "settings"
     const val HISTORY = "history"
+    const val TOOLS = "tools"
+    const val TOOL = "tool/{kind}?uri={uri}"
     const val VIEWER = "viewer?uri={uri}"
 
     fun viewer(uri: Uri) = "viewer?uri=${Uri.encode(uri.toString())}"
+
+    fun tool(kind: ToolKind, uri: Uri? = null) =
+        "tool/${kind.id}" + (uri?.let { "?uri=${Uri.encode(it.toString())}" } ?: "")
 }
 
 @Composable
@@ -48,6 +57,7 @@ fun AppNavHost(
                 onOpenDocument = openDocument,
                 onBrowse = { navController.navigate(Routes.BROWSER) },
                 onHistory = { navController.navigate(Routes.HISTORY) },
+                onTool = { kind -> navController.navigate(if (kind == null) Routes.TOOLS else Routes.tool(kind)) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
@@ -56,6 +66,41 @@ fun AppNavHost(
                 onOpenDocument = openDocument,
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.TOOLS) {
+            ToolsHubScreen(
+                onOpenTool = { navController.navigate(Routes.tool(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.TOOL,
+            arguments = listOf(
+                navArgument("kind") { type = NavType.StringType },
+                navArgument("uri") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
+            val kind = ToolKind.fromId(entry.arguments?.getString("kind"))
+            val uri = entry.arguments?.getString("uri").orEmpty().takeIf { it.isNotEmpty() }?.let(Uri::parse)
+            when (kind) {
+                null -> LaunchedEffect(Unit) { navController.popBackStack() }
+                ToolKind.ORGANIZE -> OrganizeScreen(
+                    initialUri = uri,
+                    onBack = { navController.popBackStack() },
+                    onOpenDocument = { saved ->
+                        navController.navigate(Routes.viewer(saved)) { popUpTo(Routes.TOOL) { inclusive = true } }
+                    },
+                )
+                else -> ToolScreen(
+                    kind = kind,
+                    initialUri = uri,
+                    onBack = { navController.popBackStack() },
+                    onOpenDocument = openDocument,
+                )
+            }
         }
         composable(Routes.HISTORY) {
             HistoryScreen(
@@ -84,6 +129,12 @@ fun AppNavHost(
                     onOpenDocument = { copy ->
                         navController.navigate(Routes.viewer(copy)) {
                             popUpTo(Routes.VIEWER) { inclusive = true }
+                        }
+                    },
+                    onOpenTool = { kind, doc ->
+                        navController.navigate(Routes.tool(kind, doc)) {
+                            // Organize may rewrite this very file, so close the reader first.
+                            if (kind == ToolKind.ORGANIZE) popUpTo(Routes.VIEWER) { inclusive = true }
                         }
                     },
                 )

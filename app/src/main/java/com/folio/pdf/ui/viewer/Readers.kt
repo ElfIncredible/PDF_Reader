@@ -210,7 +210,8 @@ fun PagedReader(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val bars = WindowInsets.systemBarsIgnoringVisibility.asPaddingValues()
         // Render at 2× screen width so moderate zoom stays crisp.
-        val renderWidthPx = with(density) { (maxWidth * 2).toPx() }.roundToInt().coerceAtMost(3200)
+        val pageWidth = maxWidth
+        val renderWidthPx = with(density) { (pageWidth * 2).toPx() }.roundToInt().coerceAtMost(3200)
 
         HorizontalPager(
             state = pagerState,

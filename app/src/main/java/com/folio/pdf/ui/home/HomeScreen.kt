@@ -20,13 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Compress
-import androidx.compose.material.icons.outlined.DocumentScanner
-import androidx.compose.material.icons.outlined.Draw
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.MergeType
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Badge
@@ -64,6 +61,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folio.pdf.FolioApp
 import com.folio.pdf.data.db.RecentDocument
 import com.folio.pdf.ui.components.DocumentCard
+import com.folio.pdf.ui.tools.ToolKind
 import com.folio.pdf.ui.components.EmptyState
 import com.folio.pdf.ui.components.PdfThumbnail
 import kotlinx.coroutines.launch
@@ -76,6 +74,7 @@ fun HomeScreen(
     onOpenDocument: (Uri) -> Unit,
     onBrowse: () -> Unit,
     onHistory: () -> Unit,
+    onTool: (ToolKind?) -> Unit,
     onSettings: () -> Unit,
 ) {
     val app = LocalContext.current.applicationContext as FolioApp
@@ -91,7 +90,6 @@ fun HomeScreen(
         }
     }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val comingSoon: (String) -> Unit = { msg -> scope.launch { snackbar.showSnackbar(msg) } }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -129,7 +127,7 @@ fun HomeScreen(
                 QuickActions(
                     onOpenFile = { picker.launch(PDF_MIME) },
                     onBrowse = onBrowse,
-                    onComingSoon = comingSoon,
+                    onTool = onTool,
                 )
             }
             item {
@@ -195,7 +193,7 @@ fun HomeScreen(
 private fun QuickActions(
     onOpenFile: () -> Unit,
     onBrowse: () -> Unit,
-    onComingSoon: (String) -> Unit,
+    onTool: (ToolKind?) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -203,10 +201,10 @@ private fun QuickActions(
             ActionTile(Icons.Outlined.FolderOpen, "Browse", onBrowse, Modifier.weight(1f), primary = true)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ActionTile(Icons.Outlined.MergeType, "Merge", { onComingSoon("Merge & split arrive in Phase 4") }, Modifier.weight(1f), badge = "Soon")
-            ActionTile(Icons.Outlined.Draw, "Sign", { onComingSoon("Signatures arrive in Phase 5") }, Modifier.weight(1f), badge = "Soon")
-            ActionTile(Icons.Outlined.DocumentScanner, "Scan", { onComingSoon("The camera scanner arrives in Phase 5") }, Modifier.weight(1f), badge = "Soon")
-            ActionTile(Icons.Outlined.Compress, "Compress", { onComingSoon("Compression arrives in Phase 4") }, Modifier.weight(1f), badge = "Soon")
+            ActionTile(ToolKind.MERGE.icon, "Merge", { onTool(ToolKind.MERGE) }, Modifier.weight(1f))
+            ActionTile(ToolKind.COMPRESS.icon, "Compress", { onTool(ToolKind.COMPRESS) }, Modifier.weight(1f))
+            ActionTile(ToolKind.ORGANIZE.icon, "Pages", { onTool(ToolKind.ORGANIZE) }, Modifier.weight(1f))
+            ActionTile(Icons.Outlined.Apps, "All tools", { onTool(null) }, Modifier.weight(1f))
         }
     }
 }

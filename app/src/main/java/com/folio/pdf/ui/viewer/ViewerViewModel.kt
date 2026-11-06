@@ -420,7 +420,7 @@ class ViewerViewModel(
     fun addImage(page: Int, source: Uri) = viewModelScope.launch {
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                val bitmap = decodeScaled(source, 2048) ?: error("Unreadable image")
+                val bitmap = com.folio.pdf.util.decodeScaledBitmap(appContext, source, 2048) ?: error("Unreadable image")
                 imageDir.mkdirs()
                 val id = newId()
                 val png = bitmap.hasAlpha()
@@ -441,27 +441,6 @@ class ViewerViewModel(
             create(ImageStamp(id, page, NRect(left, top, left + width, top + h), file.absolutePath, imageAspect))
         }.onFailure {
             _events.send(ViewerEvent.Message("Couldn't add that image"))
-        }
-    }
-
-    private fun decodeScaled(source: Uri, maxSide: Int): Bitmap? {
-        val resolver = appContext.contentResolver
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, source)) { decoder, info, _ ->
-                val largest = maxOf(info.size.width, info.size.height)
-                if (largest > maxSide) {
-                    val scale = maxSide.toFloat() / largest
-                    decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
-                }
-                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-            }
-        } else {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            resolver.openInputStream(source)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            var sample = 1
-            while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxSide) sample *= 2
-            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-            resolver.openInputStream(source)?.use { BitmapFactory.decodeStream(it, null, opts) }
         }
     }
 

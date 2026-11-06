@@ -1,7 +1,7 @@
 # Folio PDF — Android PDF reader & editor
 
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
-Current milestone: **Phase 3: PDF editing** (built on Phases 1–2).
+Current milestone: **Phase 4: PDF toolkit** (built on Phases 1–3).
 
 ## Run it
 
@@ -12,7 +12,45 @@ Current milestone: **Phase 3: PDF editing** (built on Phases 1–2).
 
 Command line: `./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
 
-## What Phase 3 adds
+## What Phase 4 adds
+
+Open tools from **Home** (Merge · Compress · Pages · All tools) or from the reader's **⋮ menu**
+(Organize pages · Compress · Split · PDF to images, acting on the open file).
+
+| Tool | What it does |
+|---|---|
+| **Merge PDFs** | Pick two or more PDFs, put them in order with ↑↓, save as one file. |
+| **Split PDF** | *Every page*, *every N pages*, or *custom ranges* (`1-3, 4-10, 11-`). You see how many files it will make before you start; they're saved into a folder you choose. |
+| **Organize pages** | A page grid: tap pages to select them, then **rotate**, move **earlier/later**, **move to** a position, **extract** into a new PDF, or **delete**. Undo works. Save over the original or as a copy. Bookmarks, links, forms and metadata are kept. |
+| **Compress PDF** | *Light / Balanced / Strong*. Only pictures are recompressed (text stays sharp), and an image is only replaced if that actually makes it smaller. Shows "4.2 MB → 1.1 MB (74% smaller)". |
+| **Images to PDF** | Pick photos or screenshots (upright automatically), order them, choose A4 / Letter / fit-to-image and margins. |
+| **PDF to images** | Every page as JPG or PNG at screen / standard / print quality, saved into a folder. |
+| **Text to PDF** | A `.txt` file becomes a neatly wrapped A4 PDF (an embedded system font, so most languages work). |
+
+Every tool writes a **new file** and leaves your original alone; Organize asks first if you
+choose to overwrite. When a job finishes you get **Open** and **Share**. Files with only
+printing/copying restrictions are unlocked automatically; files that need a password to open say
+so (unlocking arrives in Phase 6).
+
+Code: `pdf/PdfTools.kt` (engine), `pdf/PageRanges.kt` (range parser, tested), `ui/tools/`.
+
+> Word, Excel and PowerPoint → PDF can't be done well on a phone. It comes with the Python
+> Folio server in Phase 7 (LibreOffice in a container).
+
+### Phase 4 test checklist
+- [ ] Home → **Merge** → add 3 PDFs → reorder → Merge → Open: pages are in the order you set
+- [ ] **Split** → Custom `1-2, 3-` → choose a folder → two PDFs appear there
+- [ ] **Pages** (Organize) → select pages 2 and 3 → Rotate right → Earlier → Save as a copy → Open: correct order and rotation
+- [ ] Organize → select a page → **Extract** → the new PDF has only that page
+- [ ] Organize → try to delete every page → it refuses and explains why
+- [ ] **Compress** a photo-heavy PDF (e.g. a scan) → see the size drop; text still crisp when zoomed
+- [ ] **Images to PDF** with a portrait and a landscape photo → both upright, each on a page of the right orientation
+- [ ] **PDF to images** at Standard → a JPG per page in the chosen folder
+- [ ] **Text to PDF** with a long .txt file → wraps onto several pages
+- [ ] Reader ⋮ → Organize pages with unsaved annotation edits → asks you to save first
+- [ ] Cancel a running compress → stops; nothing half-written is left as the result
+
+## What Phase 3 added
 
 Tap the **✏️ pencil** in the reader to start editing. You edit one page at a time; the arrows move between pages.
 **One finger** uses the tool; **two fingers** zoom and move the page.
@@ -137,7 +175,7 @@ ui/ (Compose screens + ViewModels)  →  data/ (repositories)  →  Room · Data
 |---|---|---|
 | **2 – Reader** ✅ | Search, text selection, bookmarks, contents, page grid, reading modes, history & favourites | Done: see *What Phase 2 adds* above. |
 | **3 – Editing** ✅ | Highlight, underline, ink, shapes, text boxes, images, undo/redo, save | Compose `Canvas` overlay per page with a command-pattern undo stack. Write real PDF annotations with **PdfBox-Android** (`com.tom-roush:pdfbox-android`, Apache-2.0), then save a copy or overwrite through SAF. |
-| **4 – Toolkit** | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
+| **4 – Toolkit** ✅ | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
 | **5 – Sign & scan** | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
 | **6 – Advanced** | Password protect/unlock, true redaction, batch jobs, compare two PDFs, metadata editor, PDF/A | PdfBox AES-256 encryption. Redaction rasterises affected pages so hidden text is really gone. A WorkManager batch queue. Comparison uses a per-page text diff plus an image diff overlay. Metadata via PDDocumentInformation/XMP. Full PDF/A validation is server-side (Python + veraPDF/Ghostscript). |
 | **7 – AI & speed** | Summarise, ask questions, table extraction, translation, performance | A **Python FastAPI backend**: text → chunk → embed → LLM for summaries and Q&A with page citations; tables via `pdfplumber`/`camelot` → CSV/Excel. On-device translation with ML Kit. Performance work: bitmap pooling, tile cache, prefetching nearby pages, Baseline Profiles, LeakCanary, large-file tests (1,000+ pages). |
@@ -148,7 +186,9 @@ syntax is close to Python's (`val`/`var`, lambdas, data classes, no semicolons).
 A small **FastAPI** service (Phases 4, 6 and 7) handles what phones do poorly: Office conversion,
 PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working offline without it.
 
-## Next steps (Phase 4 kick-off: toolkit)
-1. A Tools screen (the "Soon" tiles on Home): Merge, Split, Reorder/Rotate/Delete pages, Extract, Compress, Images → PDF, PDF → images.
-2. A page organiser with a drag-to-reorder thumbnail grid (reusing Phase 2's thumbnails).
-3. Long jobs run in the background (WorkManager) with progress notifications; results saved via "Save as".
+## Next steps (Phase 5 kick-off: signing & scanning)
+1. **Signatures:** draw / type / photograph a signature once, save it, and stamp it anywhere (reusing Phase 3's image stamp).
+2. **Forms:** read AcroForm fields with PdfBox, fill them in a simple form view, and save (with an optional "flatten").
+3. **Scanner + OCR:** ML Kit Document Scanner (edges, crop, filters) → PDF, then ML Kit text recognition to add an invisible text layer, so scans become searchable and selectable with Phase 2's tools.
+4. **Digital signatures (certificates):** PAdES signing with PdfBox + BouncyCastle.
+5. Background jobs with notifications (WorkManager) for long toolkit tasks.
