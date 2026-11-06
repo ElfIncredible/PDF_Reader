@@ -33,4 +33,5 @@ class AppContainer(context: Context) {
     val bookmarks = BookmarksRepository(database.bookmarkDao())
     val settings = SettingsRepository(appContext)
     val documents = DocumentRepository(appContext)
+    val batch = com.folio.pdf.batch.BatchRunner(appContext, documents)
 }

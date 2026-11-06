@@ -63,12 +63,16 @@ import java.util.concurrent.atomic.AtomicReferenceArray
 sealed interface ViewerUiState {
     data object Loading : ViewerUiState
     data class Error(val title: String, val message: String) : ViewerUiState
+    /** The PDF needs a password to open. */
+    data class NeedsPassword(val wrong: Boolean) : ViewerUiState
     data class Ready(
         val document: PdfFile,
         val title: String,
         val initialPage: Int,
         /** height / width of page 1, used as a placeholder until each page is measured. */
         val placeholderAspect: Float,
+        /** Opened with a password: read-only until the password is removed. */
+        val locked: Boolean = false,
     ) : ViewerUiState
 }
 
@@ -122,6 +126,11 @@ class ViewerViewModel(
     val state: StateFlow<ViewerUiState> = _state.asStateFlow()
 
     private var document: PdfFile? = null
+
+    /** What we actually read: the file itself, or a private unlocked copy of a protected PDF. */
+    private var workingUri: Uri = uri
+    private var unlockedCopy: File? = null
+    private val locked: Boolean get() = unlockedCopy != null
     @Volatile private var texts: AtomicReferenceArray<PageText?>? = null
 
     private val _index = MutableStateFlow(IndexProgress())
@@ -187,7 +196,7 @@ class ViewerViewModel(
     private fun load(resumePage: Int? = null) = viewModelScope.launch {
         _state.value = try {
             val info = container.documents.describe(uri)
-            val doc = PdfFile.open(appContext, uri).also { document = it }
+            val doc = PdfFile.open(appContext, workingUri).also { document = it }
             if (doc.pageCount == 0) {
                 ViewerUiState.Error("Empty document", "This PDF has no pages.")
             } else {
@@ -199,14 +208,18 @@ class ViewerViewModel(
                     title = info.name.removeSuffix(".pdf").removeSuffix(".PDF"),
                     initialPage = resumePage?.coerceIn(0, doc.pageCount - 1) ?: record.lastPage,
                     placeholderAspect = doc.pageSize(0)?.aspect ?: 1.414f,
+                    locked = locked,
                 )
             }
         } catch (e: SecurityException) {
-            ViewerUiState.Error(
-                "Can't open this PDF",
-                "It may be password-protected (unlocking arrives in Phase 6), or Folio's access to it " +
-                    "has expired. Try opening it again from your files.",
-            )
+            if (!locked && runCatching { com.folio.pdf.pdf.PdfSecurity.needsPassword(appContext, uri) }.getOrDefault(false)) {
+                ViewerUiState.NeedsPassword(wrong = false)
+            } else {
+                ViewerUiState.Error(
+                    "Can't open this PDF",
+                    "Folio's access to it may have expired. Try opening it again from your files.",
+                )
+            }
         } catch (e: FileNotFoundException) {
             ViewerUiState.Error("File not found", "It may have been moved, renamed or deleted.")
         } catch (e: CancellationException) {
@@ -229,7 +242,7 @@ class ViewerViewModel(
         try {
             PdfTextExtractor.extract(
                 context = appContext,
-                uri = uri,
+                uri = workingUri,
                 onOutline = { _outline.value = it },
                 onAnnotations = { pdf ->
                     val found = runCatching { AnnotationReader.read(pdf, imageDir) { ids.incrementAndGet() } }
@@ -264,6 +277,21 @@ class ViewerViewModel(
     }
 
     fun pageText(page: Int): PageText? = texts?.let { if (page in 0 until it.length()) it.get(page) else null }
+
+    /** Opens a password-protected PDF for reading. */
+    fun unlock(password: String) = viewModelScope.launch {
+        _state.value = ViewerUiState.Loading
+        try {
+            val copy = com.folio.pdf.pdf.PdfSecurity.decryptedCopy(appContext, uri, password)
+            unlockedCopy = copy
+            workingUri = Uri.fromFile(copy)
+            load()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.value = ViewerUiState.NeedsPassword(wrong = true)
+        }
+    }
 
     // ---- Reading progress --------------------------------------------------------
 
@@ -487,6 +515,10 @@ class ViewerViewModel(
      */
     fun save(copyTarget: Uri? = null) = viewModelScope.launch {
         if (_saving.value) return@launch
+        if (locked) {
+            _events.send(ViewerEvent.Message("Remove the password first (⋮ → Remove a password) to save changes"))
+            return@launch
+        }
         _saving.value = true
         val annotations = editor.state.value.annotations
         val temp = File(appContext.cacheDir, "folio-save-${System.nanoTime()}.pdf")
@@ -530,5 +562,6 @@ class ViewerViewModel(
 
     override fun onCleared() {
         document?.close()
+        unlockedCopy?.delete()
     }
 }

@@ -98,6 +98,7 @@ fun ReaderTopBar(
     onGoToPage: () -> Unit,
     onToggleFavourite: () -> Unit,
     onShare: () -> Unit,
+    tools: List<ToolKind>,
     onTool: (ToolKind) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -151,10 +152,7 @@ fun ReaderTopBar(
                         onClick = { menu = false; onShare() },
                     )
                     HorizontalDivider()
-                    listOf(
-                        ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN, ToolKind.OCR,
-                        ToolKind.ORGANIZE, ToolKind.COMPRESS, ToolKind.SPLIT, ToolKind.PDF_TO_IMAGES,
-                    ).forEach { kind ->
+                    tools.forEach { kind ->
                         DropdownMenuItem(
                             text = { Text(kind.title) },
                             leadingIcon = { Icon(kind.icon, null) },

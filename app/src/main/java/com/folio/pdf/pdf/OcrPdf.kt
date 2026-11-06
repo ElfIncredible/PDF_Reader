@@ -112,7 +112,7 @@ object OcrPdf {
      * Writes each OCR line as invisible text (render mode "neither"), sized and stretched
      * to cover the line's box. Coordinates: x right, y up, in a [width]×[height] space.
      */
-    private fun drawInvisibleText(
+    internal fun drawInvisibleText(
         cs: PDPageContentStream,
         font: PDFont,
         lines: List<OcrLine>,

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Only to say when a batch job has finished (asked for when you start one). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- No storage permissions: Folio only sees files and folders the user picks
          through the system picker (Storage Access Framework). -->
 

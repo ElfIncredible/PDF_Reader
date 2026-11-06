@@ -1,7 +1,7 @@
 # Folio PDF — Android PDF reader & editor
 
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
-Current milestone: **Phase 5: Signing and scanning** (built on Phases 1–4).
+Current milestone: **Phase 6: Advanced features** (built on Phases 1–5).
 
 ## Run it
 
@@ -12,7 +12,41 @@ Current milestone: **Phase 5: Signing and scanning** (built on Phases 1–4).
 
 Command line: `./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
 
-## What Phase 5 adds
+## What Phase 6 adds
+
+All new tools are under **All tools**, and the reader's **⋮** menu has Redact, Add a password and Document info.
+
+| Feature | How |
+|---|---|
+| **Open protected PDFs** | Opening a password-protected PDF now asks for the password. It's read from a private unlocked copy (deleted when you close it). Editing stays off until you remove the password, so a save can never quietly strip it. |
+| **Add a password** | AES-256 encryption. Optional restrictions (printing, copying, editing) with an owner password. |
+| **Remove a password** | Saves an unlocked copy of a PDF you know the password for. |
+| **Redact** | Drag black boxes over private details, or 🔍 **Find & mark** every match of a name, ID or account number. Redaction is *real*: each marked page is replaced by a picture with the boxes burnt in, so the hidden text, images and links are gone, not covered. Optionally re-OCRs the rest of the page so it stays searchable, and removes hidden data. Always saves a new copy. |
+| **Batch process** | Pick many PDFs, choose **Compress / Make searchable / Add a password / Remove hidden data**, choose an output folder. Runs app-wide (you can leave the screen), shows per-file progress and posts a notification when done. Originals are untouched. |
+| **Compare PDFs** | Pick an original and a changed version. Word-level differences page by page: a **Text** view (removed = red strikethrough, added = green) and a **Pages** view with changes highlighted on both pages. |
+| **Document info & PDF/A** | Edit title, author, subject and keywords (Info dictionary and XMP kept in step). **Remove hidden data** (metadata, scripts, attachments, thumbnails). **PDF/A readiness check**: encryption, embedded fonts, colour profile, transparency, scripts, attachments, media, XMP. |
+| **Signature check** | *Sign with digital ID* now shows each existing signature: intact or broken, whether the file changed after signing, and who issued the certificate. |
+
+Code: `pdf/Security.kt`, `pdf/Redaction.kt`, `pdf/Sanitizer.kt`, `pdf/Metadata.kt`, `compare/` (diff tested),
+`batch/BatchRunner.kt`, `sign/SignatureCheck.kt`, `ui/redact/`, `ui/compare/`, `ui/batch/`, `ui/metadata/`.
+
+**Limits:** PDF/A *conversion* and full veraPDF validation need the Folio server (Phase 7). Compare
+works on text; for scans, run *Make PDF searchable* first. Batch jobs run while Folio is in memory.
+If Android closes the app mid-batch, the remaining files stop (finished ones are kept).
+
+### Phase 6 test checklist
+- [ ] **Add a password** to a PDF → open the copy in Folio → password prompt → wrong password says so → right one opens it; ✏️ explains it's locked
+- [ ] Open the protected copy in Chrome/Adobe → asks for the password
+- [ ] **Remove a password** → the copy opens without asking
+- [ ] **Redact**: Find & mark a name → black boxes on every match → Redact and save copy → open the copy, search for the name → **not found**; long-press there → no hidden text
+- [ ] Redacted pages elsewhere are still searchable (OCR on)
+- [ ] **Batch**: 3 PDFs → Compress → choose folder → watch progress → leave the screen → notification arrives → 3 "(compressed)" files in the folder
+- [ ] **Compare** two versions of a contract → the Text view shows changed words; the Pages view highlights them
+- [ ] **Document info**: change the title → Save as a copy → reopen Document info on the copy → new title shows
+- [ ] **PDF/A check** on a normal PDF → a list of passes and problems with plain explanations
+- [ ] Sign a PDF with your digital ID → open the signed copy in *Sign with digital ID* → "✅ Intact"; annotate it, save, check again → "changed after this signature"
+
+## What Phase 5 added
 
 Home now starts with **Sign · Scan · Merge · All tools**.
 
@@ -211,7 +245,7 @@ ui/ (Compose screens + ViewModels)  →  data/ (repositories)  →  Room · Data
 | **3 – Editing** ✅ | Highlight, underline, ink, shapes, text boxes, images, undo/redo, save | Compose `Canvas` overlay per page with a command-pattern undo stack. Write real PDF annotations with **PdfBox-Android** (`com.tom-roush:pdfbox-android`, Apache-2.0), then save a copy or overwrite through SAF. |
 | **4 – Toolkit** ✅ | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
 | **5 – Sign & scan** ✅ | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
-| **6 – Advanced** | Password protect/unlock, true redaction, batch jobs, compare two PDFs, metadata editor, PDF/A | PdfBox AES-256 encryption. Redaction rasterises affected pages so hidden text is really gone. A WorkManager batch queue. Comparison uses a per-page text diff plus an image diff overlay. Metadata via PDDocumentInformation/XMP. Full PDF/A validation is server-side (Python + veraPDF/Ghostscript). |
+| **6 – Advanced** ✅ | Password protect/unlock, true redaction, batch jobs, compare two PDFs, metadata editor, PDF/A | PdfBox AES-256 encryption. Redaction rasterises affected pages so hidden text is really gone. A WorkManager batch queue. Comparison uses a per-page text diff plus an image diff overlay. Metadata via PDDocumentInformation/XMP. Full PDF/A validation is server-side (Python + veraPDF/Ghostscript). |
 | **7 – AI & speed** | Summarise, ask questions, table extraction, translation, performance | A **Python FastAPI backend**: text → chunk → embed → LLM for summaries and Q&A with page citations; tables via `pdfplumber`/`camelot` → CSV/Excel. On-device translation with ML Kit. Performance work: bitmap pooling, tile cache, prefetching nearby pages, Baseline Profiles, LeakCanary, large-file tests (1,000+ pages). |
 
 ### Where your Python skills fit
@@ -220,10 +254,7 @@ syntax is close to Python's (`val`/`var`, lambdas, data classes, no semicolons).
 A small **FastAPI** service (Phases 4, 6 and 7) handles what phones do poorly: Office conversion,
 PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working offline without it.
 
-## Next steps (Phase 6 kick-off: advanced)
-1. **Passwords:** open password-protected PDFs (ask for the password), add or remove a password with AES-256, and set printing/copying permissions.
-2. **Redaction:** mark areas or search results and *truly* remove them (rasterise those pages so hidden text is really gone).
-3. **Batch processing:** run compress / OCR / images→PDF over many files in the background (WorkManager + notifications).
-4. **Compare two PDFs:** a page-by-page text diff with highlighted changes.
-5. **Metadata & PDF/A:** edit title/author/subject/keywords, and check PDF/A basics (full validation via the Phase 7 server).
-6. **Signature check:** verify digital signatures in a PDF (intact? who signed? trusted?).
+## Next steps (Phase 7 kick-off: AI and optimisation)
+1. **The Folio server (Python, FastAPI, Docker):** `/summarize`, `/ask` (questions with page citations), `/tables` (pdfplumber/camelot → CSV/Excel), `/convert` (LibreOffice: Word/Excel/PowerPoint → PDF), `/pdfa` (Ghostscript + veraPDF). Your Python skills fit here.
+2. **In the app:** *Summarise*, *Ask this PDF*, *Extract tables* and *Translate* (on-device ML Kit translation), with a server address in Settings and a clear privacy switch.
+3. **Optimisation:** a Baseline Profile, bitmap reuse, tiled rendering for deep zoom, prefetching nearby pages, LeakCanary in debug, and tests on 1,000+ page files.

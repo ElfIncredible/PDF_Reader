@@ -139,8 +139,11 @@ fun ToolScreen(
                 ToolKind.TEXT_TO_PDF -> TextContent(vm, inputs, busy)
                 ToolKind.SCAN -> ScanContent(vm, inputs, busy)
                 ToolKind.OCR -> OcrContent(vm, inputs, busy)
+                ToolKind.PROTECT -> ProtectContent(vm, inputs, busy)
+                ToolKind.UNLOCK -> UnlockContent(vm, inputs, busy)
                 // These have their own screens.
-                ToolKind.ORGANIZE, ToolKind.SIGN, ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN -> Unit
+                ToolKind.ORGANIZE, ToolKind.SIGN, ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN,
+                ToolKind.REDACT, ToolKind.COMPARE, ToolKind.BATCH, ToolKind.METADATA -> Unit
             }
             JobCard(
                 job = job,
@@ -450,10 +453,92 @@ private fun OcrContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean
     )
 }
 
+// ---- Passwords -----------------------------------------------------------------
+
+@Composable
+private fun ProtectContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean) {
+    val input = inputs.firstOrNull()
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var restrict by rememberSaveable { mutableStateOf(false) }
+    var allowPrint by rememberSaveable { mutableStateOf(true) }
+    var allowCopy by rememberSaveable { mutableStateOf(true) }
+    var allowEdit by rememberSaveable { mutableStateOf(true) }
+    var owner by remember { mutableStateOf("") }
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF)) { uri ->
+        uri?.let {
+            val perms = if (restrict) com.folio.pdf.pdf.Permissions(allowPrint, allowCopy, allowEdit) else com.folio.pdf.pdf.Permissions()
+            vm.protect(password, if (restrict) owner else "", perms, it)
+        }
+    }
+    SinglePdfPicker(vm, input, busy)
+    Section("Password to open") {
+        PasswordField(password, { password = it }, "Password")
+        PasswordField(confirm, { confirm = it }, "Repeat password", isError = confirm.isNotEmpty() && confirm != password)
+        Hint("Use at least 6 characters. If it's forgotten, the PDF can't be opened. Nobody, including Folio, can recover it.")
+    }
+    Section("Restrictions (optional)") {
+        SwitchRow("Limit what others can do", restrict) { restrict = it }
+        if (restrict) {
+            SwitchRow("Allow printing", allowPrint) { allowPrint = it }
+            SwitchRow("Allow copying text", allowCopy) { allowCopy = it }
+            SwitchRow("Allow editing", allowEdit) { allowEdit = it }
+            PasswordField(owner, { owner = it }, "Owner password (to change these later)")
+            Hint("Most apps respect these limits, but they aren't a strong protection on their own.")
+        }
+    }
+    RunButton(
+        text = "Protect PDF",
+        enabled = input != null && input.error == null && password.length >= 6 && password == confirm && !busy,
+        onClick = { save.launch("${vm.baseName()} (protected).pdf") },
+    )
+}
+
+@Composable
+private fun UnlockContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean) {
+    val input = inputs.firstOrNull()
+    var password by remember { mutableStateOf("") }
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF)) { uri ->
+        uri?.let { vm.unlock(password, it) }
+    }
+    SinglePdfPicker(vm, input, busy)
+    Section("Password") {
+        PasswordField(password, { password = it }, "Current password")
+        Hint("Saves a copy that opens without a password and has no restrictions. Only do this for PDFs you're allowed to unlock.")
+    }
+    RunButton(
+        text = "Remove password",
+        enabled = input != null && !busy,
+        onClick = { save.launch("${vm.baseName()} (unlocked).pdf") },
+    )
+}
+
+@Composable
+internal fun PasswordField(value: String, onChange: (String) -> Unit, label: String, isError: Boolean = false) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        isError = isError,
+        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+internal fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
 // ---- Shared pieces -------------------------------------------------------------
 
 @Composable
-private fun SinglePdfPicker(vm: ToolViewModel, input: ToolInput?, busy: Boolean) {
+internal fun SinglePdfPicker(vm: ToolViewModel, input: ToolInput?, busy: Boolean) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { u -> vm.add(listOf(u)) } }
     Section("PDF") {
         if (input != null) InputRow(input, onRemove = { vm.remove(0) })

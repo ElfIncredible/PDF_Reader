@@ -77,7 +77,8 @@ class ToolViewModel(
             uris.forEach { container.documents.persistReadPermission(it) }
             val described = uris.map { ToolInput(container.documents.describe(it)) }
             _inputs.value = if (single) listOf(described.first()) else _inputs.value + described
-            if (takesPdfs) described.forEach { loadPageCount(it.info.uri) }
+            // A locked PDF can't be counted until it's unlocked; that's the Unlock tool's job.
+            if (takesPdfs && kind != ToolKind.UNLOCK) described.forEach { loadPageCount(it.info.uri) }
         }
     }
 
@@ -183,6 +184,19 @@ class ToolViewModel(
         val count = com.folio.pdf.pdf.OcrPdf.makeSearchable(context, input.info.uri, temp, progress)
         if (count == 0) "No scanned pages found: every page already has text. Saved an unchanged copy."
         else "Made $count ${if (count == 1) "page" else "pages"} searchable"
+    }
+
+    fun protect(openPassword: String, ownerPassword: String, permissions: com.folio.pdf.pdf.Permissions, output: Uri) =
+        runToFile(output, "Encrypting…") { temp, _ ->
+            val input = first ?: throw ToolException("Choose a PDF first")
+            com.folio.pdf.pdf.PdfSecurity.protect(context, input.info.uri, openPassword, ownerPassword, permissions, temp)
+            "Protected with AES-256. Keep the password safe: it can't be recovered."
+        }
+
+    fun unlock(password: String, output: Uri) = runToFile(output, "Unlocking…") { temp, _ ->
+        val input = first ?: throw ToolException("Choose a PDF first")
+        com.folio.pdf.pdf.PdfSecurity.unlock(context, input.info.uri, password, temp)
+        "Saved a copy without a password"
     }
 
     fun textToPdf(fontSize: Float, output: Uri) = runToFile(output, "Converting…") { temp, _ ->

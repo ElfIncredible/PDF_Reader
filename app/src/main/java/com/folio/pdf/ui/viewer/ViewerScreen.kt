@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -91,6 +92,9 @@ fun ViewerScreen(
     when (val s = state) {
         ViewerUiState.Loading -> SimpleViewerScaffold("Opening…", onBack) {
             CircularProgressIndicator(Modifier.align(Alignment.Center))
+        }
+        is ViewerUiState.NeedsPassword -> SimpleViewerScaffold("Password needed", onBack) {
+            PasswordPrompt(wrong = s.wrong, onOpen = vm::unlock, modifier = Modifier.align(Alignment.Center))
         }
         is ViewerUiState.Error -> SimpleViewerScaffold("", onBack) {
             EmptyState(
@@ -366,7 +370,9 @@ private fun PdfReader(
                         onBack = ::requestExit,
                         onSearch = { searching = true },
                         onEdit = {
-                            if (annotationsReady) {
+                            if (state.locked) {
+                                toast("This PDF is password-protected. Remove the password first (⋮ → Remove a password) to edit it")
+                            } else if (annotationsReady) {
                                 selection = null
                                 editing = true
                             } else {
@@ -387,6 +393,11 @@ private fun PdfReader(
                             toast(if (isFavourite) "Removed from favourites" else "Added to favourites")
                         },
                         onShare = { sharePdf(context, uri, state.title) },
+                        tools = if (state.locked) listOf(ToolKind.UNLOCK) else listOf(
+                            ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN, ToolKind.OCR, ToolKind.REDACT,
+                            ToolKind.PROTECT, ToolKind.METADATA, ToolKind.ORGANIZE, ToolKind.COMPRESS,
+                            ToolKind.SPLIT, ToolKind.PDF_TO_IMAGES,
+                        ),
                         onTool = { kind ->
                             // Tools work on the saved file, so unsaved annotations must be saved first.
                             if (editor.dirty) toast("Save your edits first (✏️ → 💾), then use ${kind.title}")
@@ -493,6 +504,40 @@ private fun PdfReader(
                 vm.selectHit(i)
             },
             onDismiss = { showResults = false },
+        )
+    }
+}
+
+@Composable
+private fun PasswordPrompt(wrong: Boolean, onOpen: (String) -> Unit, modifier: Modifier = Modifier) {
+    var password by remember { mutableStateOf("") }
+    androidx.compose.foundation.layout.Column(
+        modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(androidx.compose.material.icons.Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 4.dp))
+        Text("This PDF is password-protected", style = MaterialTheme.typography.titleMedium)
+        androidx.compose.material3.OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            singleLine = true,
+            isError = wrong,
+            supportingText = if (wrong) { { Text("That password isn't right") } } else null,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Go,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { if (password.isNotEmpty()) onOpen(password) }),
+        )
+        Button(onClick = { onOpen(password) }, enabled = password.isNotEmpty()) { Text("Open") }
+        Text(
+            "The password is only used to open the file on this phone.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

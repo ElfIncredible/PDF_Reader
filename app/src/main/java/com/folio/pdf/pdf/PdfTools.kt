@@ -376,13 +376,16 @@ object PdfTools {
      * Loads a PDF ready to be changed. Files with only an owner password (printing or
      * copying restrictions) are unlocked; files that need a password to open are refused.
      */
-    fun openForEditing(context: Context, uri: Uri): PDDocument {
+    fun openForEditing(context: Context, uri: Uri, password: String? = null): PDDocument {
         val doc = try {
             context.contentResolver.openInputStream(uri)?.use {
-                PDDocument.load(it, MemoryUsageSetting.setupTempFileOnly())
+                PDDocument.load(it, password.orEmpty(), MemoryUsageSetting.setupTempFileOnly())
             } ?: throw FileNotFoundException("Cannot read $uri")
         } catch (e: InvalidPasswordException) {
-            throw ToolException("This PDF is password-protected. Unlocking arrives in Phase 6.")
+            throw ToolException(
+                if (password.isNullOrEmpty()) "This PDF is password-protected. Remove the password first (Tools → Remove a password)."
+                else "That password isn't right.",
+            )
         }
         if (!doc.isEncrypted) return doc
         // Re-load an unencrypted copy so pages can be moved between documents safely.

@@ -82,8 +82,8 @@ class DigitalSignViewModel(
     private val _id = MutableStateFlow(DigitalIds.info(context))
     val id: StateFlow<DigitalIdInfo?> = _id.asStateFlow()
 
-    private val _existing = MutableStateFlow<List<String>>(emptyList())
-    val existing: StateFlow<List<String>> = _existing.asStateFlow()
+    private val _existing = MutableStateFlow<List<com.folio.pdf.sign.SignatureReport>>(emptyList())
+    val existing: StateFlow<List<com.folio.pdf.sign.SignatureReport>> = _existing.asStateFlow()
 
     private val _job = MutableStateFlow<JobState>(JobState.Idle)
     val job: StateFlow<JobState> = _job.asStateFlow()
@@ -95,7 +95,7 @@ class DigitalSignViewModel(
         viewModelScope.launch {
             container.documents.persistReadPermission(uri)
             _name.value = container.documents.describe(uri).name.substringBeforeLast('.')
-            _existing.value = DigitalIds.existingSignatures(context, uri)
+            _existing.value = com.folio.pdf.sign.SignatureCheck.verify(context, uri)
         }
     }
 
@@ -198,8 +198,20 @@ private fun DigitalSigner(uri: Uri, onBack: () -> Unit, onOpenDocument: (Uri) ->
             )
             Section("Document") {
                 Text(name.ifEmpty { "PDF" }, style = MaterialTheme.typography.titleMedium)
-                if (existing.isNotEmpty()) {
-                    Hint("Already signed by: " + existing.joinToString("; "))
+                if (existing.isEmpty()) {
+                    Hint("Not digitally signed yet.")
+                } else {
+                    existing.forEach { r ->
+                        val verdict = when {
+                            r.intact == false -> "❌ Signature is broken: the signed content doesn't match"
+                            r.intact == null -> "⚠️ Couldn't check this signature"
+                            !r.coversWholeFile -> "⚠️ Valid, but the PDF was changed after this signature"
+                            r.selfSigned -> "✅ Intact · personal (self-signed) ID, identity not verified by an authority"
+                            else -> "✅ Intact · certificate issued by ${r.issuer ?: "unknown"}"
+                        }
+                        Text(r.signer + (r.date?.let { " · $it" } ?: ""), style = MaterialTheme.typography.titleSmall)
+                        Hint(verdict)
+                    }
                 }
             }
 
