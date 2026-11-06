@@ -13,10 +13,18 @@ import java.io.IOException
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/** How pages flow in the reader. */
+enum class ScrollMode { VERTICAL, PAGED }
+
+/** Paper colour while reading. */
+enum class ColorMode { NORMAL, SEPIA, NIGHT }
+
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val keepScreenOn: Boolean = false,
+    val scrollMode: ScrollMode = ScrollMode.VERTICAL,
+    val colorMode: ColorMode = ColorMode.NORMAL,
     /** Folder the user granted for the Browse tab (a SAF tree URI). */
     val libraryTreeUri: String? = null,
 )
@@ -30,6 +38,8 @@ class SettingsRepository(private val context: Context) {
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val LIBRARY_TREE = stringPreferencesKey("library_tree_uri")
+        val SCROLL_MODE = stringPreferencesKey("scroll_mode")
+        val COLOR_MODE = stringPreferencesKey("color_mode")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data
@@ -42,6 +52,12 @@ class SettingsRepository(private val context: Context) {
                 dynamicColor = p[Keys.DYNAMIC_COLOR] ?: true,
                 keepScreenOn = p[Keys.KEEP_SCREEN_ON] ?: false,
                 libraryTreeUri = p[Keys.LIBRARY_TREE],
+                scrollMode = p[Keys.SCROLL_MODE]
+                    ?.let { runCatching { ScrollMode.valueOf(it) }.getOrNull() }
+                    ?: ScrollMode.VERTICAL,
+                colorMode = p[Keys.COLOR_MODE]
+                    ?.let { runCatching { ColorMode.valueOf(it) }.getOrNull() }
+                    ?: ColorMode.NORMAL,
             )
         }
 
@@ -55,6 +71,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setKeepScreenOn(enabled: Boolean) {
         context.dataStore.edit { it[Keys.KEEP_SCREEN_ON] = enabled }
+    }
+
+    suspend fun setScrollMode(mode: ScrollMode) {
+        context.dataStore.edit { it[Keys.SCROLL_MODE] = mode.name }
+    }
+
+    suspend fun setColorMode(mode: ColorMode) {
+        context.dataStore.edit { it[Keys.COLOR_MODE] = mode.name }
     }
 
     suspend fun setLibraryTreeUri(uri: String?) {

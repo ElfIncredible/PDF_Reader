@@ -1,2 +1,5 @@
-# Room and Compose ship their own consumer rules. Add library-specific rules here
-# when PDFBox / PDFium / ML Kit are introduced in later phases.
+# PdfBox-Android: optional JPEG2000 decoder and crypto providers are not bundled.
+-dontwarn com.gemalto.jp2.**
+-dontwarn org.bouncycastle.**
+-keep class com.tom_roush.pdfbox.** { *; }
+-keep class com.tom_roush.fontbox.** { *; }

@@ -1,7 +1,7 @@
 # Folio PDF — Android PDF reader & editor
 
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
-This repository is **Phase 1: Foundation and UI**.
+Current milestone: **Phase 2: PDF reader** (built on Phase 1: Foundation and UI).
 
 ## Run it
 
@@ -12,7 +12,40 @@ This repository is **Phase 1: Foundation and UI**.
 
 Command line: `./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
 
-## What Phase 1 delivers
+## What Phase 2 adds
+
+| Feature | How to use it | Code |
+|---|---|---|
+| **Search** | 🔍 in the reader. Matches are highlighted, the counter (e.g. `3/27`) opens a list of results with snippets, and ⌃⌄ step through them. Works while the text is still being read. | `pdf/TextSearch.kt`, `ui/viewer/ViewerBars.kt` |
+| **Text selection** | Long-press a word, keep holding and drag to extend. Then Copy, Search, Share or Select whole page. | `pdf/PageText.kt`, `ui/viewer/PageView.kt` |
+| **Bookmarks** | Bookmark icon at the top saves the current page (with a text snippet). | `data/BookmarksRepository.kt` (Room v2 + migration) |
+| **Contents / Bookmarks / Pages** | ☰ opens a sheet: the PDF's table of contents (your current chapter highlighted), your bookmarks, and a page-thumbnail grid. | `ui/viewer/ViewerSheets.kt` |
+| **Zoom & navigation** | Pinch, double-tap, ± buttons, page slider, go-to-page, tap to go full-screen (system bars hide too). | `ui/viewer/Readers.kt` |
+| **Reading modes** | ⋮ → Reading mode: *Continuous scroll* or *Page by page* (swipe; pinch/double-tap zoom per page), colours *Normal / Sepia / Night*, keep screen on. Saved for next time. | `ui/viewer/Readers.kt`, `PageView.kt` |
+| **History & favourites** | Home shows a *Continue reading* card and a **History** link: everything you've opened, grouped Today / Yesterday / This week…, searchable. Favourite from the reader's ⋮ menu or the ☆ on any card. | `ui/history/`, `ui/home/` |
+
+**How text works:** pages are still drawn by Android's fast built-in renderer. In the background,
+**PdfBox-Android** reads each page's text and the exact position of every character, page by
+page, so search highlights and selection line up with what you see. Scanned PDFs have no text
+layer; the app says so, and OCR arrives in Phase 5.
+
+> Plan change from Phase 1: we use PdfBox-Android (Apache-2.0) for text instead of PDFium, because
+> Phases 3–6 (annotations, merge/split, forms, passwords) need PdfBox anyway. One library, not two.
+
+### Phase 2 test checklist
+- [ ] Search a word → highlights appear, `1/N` counter, arrows move between matches across pages
+- [ ] Tap the counter → results list → tapping a result jumps there
+- [ ] Long-press a word → it's selected; drag to extend → Copy → paste in another app
+- [ ] Bookmark a page → it appears under ☰ → Bookmarks; tap to jump; delete works
+- [ ] A PDF with a table of contents shows it under ☰ → Contents; chapters jump correctly
+- [ ] Reading mode → Page by page → swipe pages, pinch-zoom one page, swipe resets zoom
+- [ ] Night and Sepia recolour pages and thumbnails
+- [ ] Tap the page → full-screen with a small page pill; tap again → controls return
+- [ ] Home shows *Continue reading* after you've read past page 1; History groups by day
+- [ ] A scanned PDF: search/selection explain there's no text (no crash)
+- [ ] Upgrading from Phase 1 keeps your recents (database migration)
+
+## What Phase 1 delivered
 
 | Feature | Where |
 |---|---|
@@ -57,7 +90,7 @@ ui/ (Compose screens + ViewModels)  →  data/ (repositories)  →  Room · Data
 
 | Phase | Features | How |
 |---|---|---|
-| **2 – Reader** | Search, text selection, bookmarks, history & favourites, reading modes (night / sepia / single page / horizontal), outline | Swap `PdfFile` internals to **PDFium** (`io.legere:pdfiumandroid`, Apache-2.0) for text, search and outline. Bookmarks go in a new Room table. Night mode uses a colour-matrix filter on the page image. Tile rendering for sharp deep zoom. |
+| **2 – Reader** ✅ | Search, text selection, bookmarks, contents, page grid, reading modes, history & favourites | Done: see *What Phase 2 adds* above. |
 | **3 – Editing** | Highlight, underline, ink, shapes, text boxes, images, undo/redo, save | Compose `Canvas` overlay per page with a command-pattern undo stack. Write real PDF annotations with **PdfBox-Android** (`com.tom-roush:pdfbox-android`, Apache-2.0), then save a copy or overwrite through SAF. |
 | **4 – Toolkit** | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
 | **5 – Sign & scan** | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
@@ -70,8 +103,7 @@ syntax is close to Python's (`val`/`var`, lambdas, data classes, no semicolons).
 A small **FastAPI** service (Phases 4, 6 and 7) handles what phones do poorly: Office conversion,
 PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working offline without it.
 
-## Next steps (Phase 2 kick-off)
-1. Add PDFium and move `PdfFile` onto it (same public API).
-2. Add a `Bookmark` entity and the bookmarks/outline sheet in the viewer.
-3. Search bar in the viewer with result highlighting.
-4. Reading-mode menu (night, sepia, horizontal paging).
+## Next steps (Phase 3 kick-off: editing)
+1. An annotation model (highlight, underline, strike, ink, shape, text box, image) with a command-based undo/redo stack.
+2. An editing toolbar plus a Compose drawing overlay on each page, reusing Phase 2's character boxes for text-snapped highlights.
+3. Save: write real PDF annotations with PdfBox, as "Save" (overwrite via SAF) or "Save as copy".
