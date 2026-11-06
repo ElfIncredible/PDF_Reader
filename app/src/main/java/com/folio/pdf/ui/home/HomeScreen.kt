@@ -203,7 +203,7 @@ private fun QuickActions(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ActionTile(ToolKind.SIGN.icon, "Sign", { onTool(ToolKind.SIGN) }, Modifier.weight(1f))
             ActionTile(ToolKind.SCAN.icon, "Scan", { onTool(ToolKind.SCAN) }, Modifier.weight(1f))
-            ActionTile(ToolKind.MERGE.icon, "Merge", { onTool(ToolKind.MERGE) }, Modifier.weight(1f))
+            ActionTile(ToolKind.ASSISTANT.icon, "AI", { onTool(ToolKind.ASSISTANT) }, Modifier.weight(1f))
             ActionTile(Icons.Outlined.Apps, "All tools", { onTool(null) }, Modifier.weight(1f))
         }
     }

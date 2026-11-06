@@ -48,6 +48,8 @@ object AnnotationImages {
 
     fun peek(path: String): ImageBitmap? = cache.get(path)
 
+    fun trim() = cache.evictAll()
+
     fun load(path: String): ImageBitmap? =
         cache.get(path) ?: runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }
             .getOrNull()?.also { cache.put(path, it) }

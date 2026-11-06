@@ -394,7 +394,7 @@ private fun PdfReader(
                         },
                         onShare = { sharePdf(context, uri, state.title) },
                         tools = if (state.locked) listOf(ToolKind.UNLOCK) else listOf(
-                            ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN, ToolKind.OCR, ToolKind.REDACT,
+                            ToolKind.ASSISTANT, ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN, ToolKind.OCR, ToolKind.REDACT,
                             ToolKind.PROTECT, ToolKind.METADATA, ToolKind.ORGANIZE, ToolKind.COMPRESS,
                             ToolKind.SPLIT, ToolKind.PDF_TO_IMAGES,
                         ),

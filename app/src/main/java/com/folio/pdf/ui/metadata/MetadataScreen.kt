@@ -66,6 +66,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.DateFormat
@@ -128,6 +129,35 @@ class MetadataViewModel(private val uri: Uri, private val context: Context, priv
         Metadata.removeHiddenData(context, uri, it)
     }
 
+    /** Converts to PDF/A-2b on the Folio server (Ghostscript; veraPDF validation if installed). */
+    fun convertToPdfa(output: Uri) {
+        if (_job.value is JobState.Running) return
+        _job.value = JobState.Running(null, "Converting on your server…")
+        viewModelScope.launch {
+            _job.value = try {
+                val settings = container.settings.settings.first()
+                if (!settings.serverConsent) throw IllegalStateException("Allow sending documents to your server in Settings → Folio server")
+                val server = com.folio.pdf.net.FolioServer.from(context, settings)
+                    ?: throw IllegalStateException("Set up your Folio server in Settings first")
+                val (bytes, validation) = server.pdfa(uri, 2)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(output, "wt")?.use { it.write(bytes) }
+                }
+                container.documents.persistReadPermission(output)
+                val verdict = when {
+                    validation == "passed" -> "Validated with veraPDF: passed ✅"
+                    validation.startsWith("failed") -> "veraPDF found problems: ${validation.removePrefix("failed: ")}"
+                    else -> "Not validated (veraPDF isn't installed on the server)"
+                }
+                JobState.Done("Converted to PDF/A-2b. $verdict", listOf(output), openable = output)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                JobState.Failed(e.message ?: "Couldn't convert")
+            }
+        }
+    }
+
     fun dismiss() { _job.value = JobState.Idle }
 }
 
@@ -157,6 +187,9 @@ private fun MetadataEditor(uri: Uri, onBack: () -> Unit, onOpenDocument: (Uri) -
     val saveCopy = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
         val m = edited
         if (out != null && m != null) vm.save(m, out)
+    }
+    val pdfaCopy = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
+        if (out != null) vm.convertToPdfa(out)
     }
     val cleanCopy = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
         if (out != null) vm.clean(out)
@@ -212,15 +245,20 @@ private fun MetadataEditor(uri: Uri, onBack: () -> Unit, onOpenDocument: (Uri) -
 
             Section("Archiving (PDF/A)") {
                 Hint("PDF/A is the format courts, governments and archives ask for, so documents still open correctly decades from now.")
-                OutlinedButton(onClick = vm::check) { Text(if (checks == null) "Check PDF/A readiness" else "Check again") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = vm::check) { Text(if (checks == null) "Check readiness" else "Check again") }
+                    OutlinedButton(onClick = { pdfaCopy.launch("${vm.name} (PDF-A).pdf") }, enabled = job !is JobState.Running) {
+                        Text("Convert (server)")
+                    }
+                }
                 checks?.let { list ->
                     if (list.isEmpty()) CircularProgressIndicator()
                     list.forEach { c -> CheckRow(c) }
                     if (list.isNotEmpty()) {
                         val fails = list.count { it.status == CheckStatus.FAIL }
                         Hint(
-                            if (fails == 0) "No blocking problems found. Full validation (veraPDF) and conversion come with the Folio server in Phase 7."
-                            else "$fails problems would stop this file being accepted as PDF/A. Conversion comes with the Folio server in Phase 7.",
+                            if (fails == 0) "No blocking problems found. For certainty, convert on your server: it validates with veraPDF when installed."
+                            else "$fails problems would stop this file being accepted as PDF/A. \"Convert (server)\" fixes most of them.",
                         )
                     }
                 }

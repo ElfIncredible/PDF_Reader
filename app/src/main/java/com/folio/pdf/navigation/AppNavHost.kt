@@ -13,6 +13,7 @@ import com.folio.pdf.ui.browser.BrowserScreen
 import com.folio.pdf.ui.history.HistoryScreen
 import com.folio.pdf.ui.home.HomeScreen
 import com.folio.pdf.ui.settings.SettingsScreen
+import com.folio.pdf.ui.assistant.AssistantScreen
 import com.folio.pdf.ui.batch.BatchScreen
 import com.folio.pdf.ui.compare.CompareScreen
 import com.folio.pdf.ui.forms.FormScreen
@@ -111,6 +112,11 @@ fun AppNavHost(
                     onOpenDocument = { saved ->
                         navController.navigate(Routes.viewer(saved)) { popUpTo(Routes.TOOL) { inclusive = true } }
                     },
+                )
+                ToolKind.ASSISTANT -> AssistantScreen(
+                    initialUri = uri,
+                    onBack = { navController.popBackStack() },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
                 ToolKind.REDACT -> RedactScreen(
                     initialUri = uri,

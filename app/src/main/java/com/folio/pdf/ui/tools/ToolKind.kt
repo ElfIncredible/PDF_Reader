@@ -2,6 +2,8 @@ package com.folio.pdf.ui.tools
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Transform
 import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.Info
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class ToolKind(val id: String, val title: String, val description: String, val icon: ImageVector) {
+    ASSISTANT("assistant", "AI assistant", "Summarise, ask questions, extract tables, translate", Icons.Outlined.AutoAwesome),
+    CONVERT_OFFICE("office-to-pdf", "Word, Excel, PowerPoint → PDF", "Convert Office documents (uses your Folio server)", Icons.Outlined.Transform),
     SIGN("sign", "Sign a PDF", "Add your handwritten signature or initials", Icons.Outlined.Gesture),
     FILL_FORM("fill-form", "Fill a form", "Type into a PDF form's fields and save it", Icons.Outlined.Assignment),
     SCAN("scan", "Scan documents", "Use the camera to make a clean, searchable PDF", Icons.Outlined.DocumentScanner),

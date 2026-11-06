@@ -29,9 +29,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -79,6 +82,8 @@ fun VerticalReader(
     // `zoom.value` follows the fingers; `renderZoom` trails it so sharp bitmaps are only
     // re-rendered once the pinch settles.
     var renderZoom by remember { mutableFloatStateOf(zoom.value) }
+    // Width the visible pages are rendered at, shared with the prefetcher.
+    var lastRenderWidth by remember { mutableIntStateOf(0) }
     LaunchedEffect(zoom.value) {
         delay(220)
         renderZoom = zoom.value
@@ -102,6 +107,18 @@ fun VerticalReader(
     }
     LaunchedEffect(listState) {
         snapshotFlow { listState.mostVisibleIndex() }.collect { onPageChanged(it) }
+    }
+
+    // Render the next pages (and the previous one) just before they scroll into view.
+    val visiblePage by remember { derivedStateOf { listState.mostVisibleIndex() } }
+    LaunchedEffect(visiblePage, renderZoom) {
+        delay(300) // let the visible pages go first
+        val widthPx = lastRenderWidth
+        if (widthPx > 0) {
+            for (p in listOf(visiblePage + 1, visiblePage + 2, visiblePage - 1)) {
+                if (p in 0 until env.doc.pageCount) env.doc.renderPage(p, widthPx)
+            }
+        }
     }
 
     BoxWithConstraints(
@@ -138,6 +155,7 @@ fun VerticalReader(
         val renderWidthPx = with(density) {
             ((viewportWidth - pagePadding * 2) * renderZoom).toPx().roundToInt()
         }
+        SideEffect { lastRenderWidth = renderWidthPx }
         // Ignore visibility so hiding the system bars doesn't make the pages jump.
         val bars = WindowInsets.systemBarsIgnoringVisibility.asPaddingValues()
 

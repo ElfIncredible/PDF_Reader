@@ -36,7 +36,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.folio.pdf.BuildConfig
+import com.folio.pdf.net.FolioServer
 import com.folio.pdf.FolioApp
 import com.folio.pdf.data.AppSettings
 import com.folio.pdf.data.ThemeMode
@@ -101,6 +111,10 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionTitle("Folio server (AI & conversions)")
+            ServerSection(settings)
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionTitle("Privacy")
             ListItem(
                 modifier = Modifier.clickable { confirmClear = true },
@@ -137,6 +151,80 @@ fun SettingsScreen(onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
     }
+}
+
+@Composable
+private fun ServerSection(settings: AppSettings) {
+    val context = LocalContext.current
+    val container = (context.applicationContext as FolioApp).container
+    val scope = rememberCoroutineScope()
+    var url by remember(settings.serverUrl) { mutableStateOf(settings.serverUrl) }
+    var token by remember(settings.serverToken) { mutableStateOf(settings.serverToken) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var testing by remember { mutableStateOf(false) }
+    val changed = url.trim().trimEnd('/') != settings.serverUrl || token.trim() != settings.serverToken
+
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Summaries, questions, tables, Office → PDF and PDF/A run on a small server you control " +
+                "(the folio-server folder in the project). Reading, editing and everything else work without it.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = url, onValueChange = { url = it },
+            label = { Text("Server address") }, placeholder = { Text("http://192.168.1.20:8000") },
+            singleLine = true, modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        )
+        OutlinedTextField(
+            value = token, onValueChange = { token = it },
+            label = { Text("Access token (FOLIO_TOKEN)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+        )
+        if (FolioServer.isInsecure(url)) {
+            Text(
+                "⚠️ This is a plain http:// address outside your home network: documents would travel unencrypted. Use https:// for servers on the internet.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(
+                onClick = { scope.launch { container.settings.setServer(url, token); status = "Saved" } },
+                enabled = changed,
+            ) { Text("Save") }
+            OutlinedButton(
+                onClick = {
+                    testing = true
+                    status = null
+                    scope.launch {
+                        container.settings.setServer(url, token)
+                        status = try {
+                            val h = FolioServer(context, url.trim().trimEnd('/'), token.trim()).health()
+                            buildString {
+                                append("✅ Connected (server ${h.version}). ")
+                                append(if (h.ai) "AI: ${h.model ?: "on"}. " else "AI is off. ")
+                                append(if (h.convert) "Office → PDF ✓. " else "No LibreOffice. ")
+                                append(if (h.pdfa) "PDF/A ✓" else "No Ghostscript")
+                                if (h.pdfa) append(if (h.validate) " + veraPDF." else ".")
+                            }
+                        } catch (e: Exception) {
+                            "❌ " + (e.message ?: "Couldn't connect")
+                        }
+                        testing = false
+                    }
+                },
+                enabled = url.isNotBlank() && !testing,
+            ) { Text(if (testing) "Testing…" else "Test connection") }
+        }
+        status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+    }
+    SwitchRow(
+        title = "Allow sending documents to this server",
+        subtitle = "Needed for AI and conversions. If your server uses an online AI service, that service sees the text too.",
+        checked = settings.serverConsent,
+        onChange = { scope.launch { container.settings.setServerConsent(it) } },
+    )
 }
 
 @Composable

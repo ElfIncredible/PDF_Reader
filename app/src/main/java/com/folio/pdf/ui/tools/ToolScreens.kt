@@ -141,9 +141,10 @@ fun ToolScreen(
                 ToolKind.OCR -> OcrContent(vm, inputs, busy)
                 ToolKind.PROTECT -> ProtectContent(vm, inputs, busy)
                 ToolKind.UNLOCK -> UnlockContent(vm, inputs, busy)
+                ToolKind.CONVERT_OFFICE -> OfficeContent(vm, inputs, busy)
                 // These have their own screens.
                 ToolKind.ORGANIZE, ToolKind.SIGN, ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN,
-                ToolKind.REDACT, ToolKind.COMPARE, ToolKind.BATCH, ToolKind.METADATA -> Unit
+                ToolKind.REDACT, ToolKind.COMPARE, ToolKind.BATCH, ToolKind.METADATA, ToolKind.ASSISTANT -> Unit
             }
             JobCard(
                 job = job,
@@ -450,6 +451,46 @@ private fun OcrContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean
         text = "Recognise text",
         enabled = input != null && input.error == null && input.pages != null && !busy,
         onClick = { save.launch("${vm.baseName()} (searchable).pdf") },
+    )
+}
+
+// ---- Office → PDF (server) -------------------------------------------------------
+
+private val officeTypes = arrayOf(
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.oasis.opendocument.presentation",
+    "application/rtf", "text/rtf", "text/csv", "text/plain", "text/html",
+)
+
+@Composable
+private fun OfficeContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean) {
+    val input = inputs.firstOrNull()
+    val app = LocalContext.current.applicationContext as FolioApp
+    val settings by app.container.settings.settings.collectAsStateWithLifecycle(initialValue = com.folio.pdf.data.AppSettings())
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { u -> vm.add(listOf(u)) } }
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF)) { uri -> uri?.let(vm::convertOffice) }
+    Section("Document") {
+        if (input != null) InputRow(input, icon = Icons.Outlined.Description, onRemove = { vm.remove(0) })
+        OutlinedButton(onClick = { pick.launch(officeTypes) }, enabled = !busy) {
+            Text(if (input == null) "Choose a Word, Excel or PowerPoint file" else "Choose a different file")
+        }
+    }
+    when {
+        settings.serverUrl.isBlank() -> ErrorText("Set up your Folio server first: Settings → Folio server. Office files are converted there with LibreOffice.")
+        !settings.serverConsent -> ErrorText("Allow sending documents to your server in Settings → Folio server.")
+        else -> Hint("The file is sent to your server (${settings.serverUrl}), converted with LibreOffice, and the PDF comes back. Nothing is kept on the server.")
+    }
+    RunButton(
+        text = "Convert to PDF",
+        enabled = input != null && settings.serverUrl.isNotBlank() && settings.serverConsent && !busy,
+        onClick = { save.launch("${vm.baseName()}.pdf") },
     )
 }
 
