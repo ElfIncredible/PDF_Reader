@@ -60,8 +60,8 @@ class ToolViewModel(
 
     private var running: Job? = null
 
-    private val takesImages = kind == ToolKind.IMAGES_TO_PDF
-    private val takesPdfs = kind != ToolKind.IMAGES_TO_PDF && kind != ToolKind.TEXT_TO_PDF
+    private val takesImages = kind == ToolKind.IMAGES_TO_PDF || kind == ToolKind.SCAN
+    private val takesPdfs = !takesImages && kind != ToolKind.TEXT_TO_PDF
 
     init {
         initial?.let { add(listOf(it)) }
@@ -73,7 +73,7 @@ class ToolViewModel(
         if (uris.isEmpty()) return
         _job.value = JobState.Idle
         viewModelScope.launch {
-            val single = kind != ToolKind.MERGE && kind != ToolKind.IMAGES_TO_PDF
+            val single = kind != ToolKind.MERGE && !takesImages
             uris.forEach { container.documents.persistReadPermission(it) }
             val described = uris.map { ToolInput(container.documents.describe(it)) }
             _inputs.value = if (single) listOf(described.first()) else _inputs.value + described
@@ -169,6 +169,20 @@ class ToolViewModel(
         val input = first ?: throw ToolException("Choose a PDF first")
         val files = PdfTools.pdfToImages(context, input.info.uri, format, dpi, folder, baseName(), progress)
         JobState.Done("Saved ${files.size} ${format.label} images", files, mime = format.mime)
+    }
+
+    fun scanToPdf(recognise: Boolean, output: Uri) =
+        runToFile(output, if (recognise) "Recognising text…" else "Building PDF…") { temp, progress ->
+            val pages = _inputs.value
+            com.folio.pdf.pdf.OcrPdf.fromImages(context, pages.map { it.info.uri }, recognise, temp, progress)
+            "${pages.size}-page PDF" + (if (recognise) " · searchable" else "") + " · ${formatFileSize(temp.length())}"
+        }
+
+    fun ocr(output: Uri) = runToFile(output, "Recognising text…") { temp, progress ->
+        val input = first ?: throw ToolException("Choose a PDF first")
+        val count = com.folio.pdf.pdf.OcrPdf.makeSearchable(context, input.info.uri, temp, progress)
+        if (count == 0) "No scanned pages found: every page already has text. Saved an unchanged copy."
+        else "Made $count ${if (count == 1) "page" else "pages"} searchable"
     }
 
     fun textToPdf(fontSize: Float, output: Uri) = runToFile(output, "Converting…") { temp, _ ->

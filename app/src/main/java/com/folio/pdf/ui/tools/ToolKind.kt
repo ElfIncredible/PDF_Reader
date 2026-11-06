@@ -1,7 +1,12 @@
 package com.folio.pdf.ui.tools
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Compress
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.FindInPage
+import androidx.compose.material.icons.outlined.Gesture
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.GridView
@@ -11,6 +16,11 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class ToolKind(val id: String, val title: String, val description: String, val icon: ImageVector) {
+    SIGN("sign", "Sign a PDF", "Add your handwritten signature or initials", Icons.Outlined.Gesture),
+    FILL_FORM("fill-form", "Fill a form", "Type into a PDF form's fields and save it", Icons.Outlined.Assignment),
+    SCAN("scan", "Scan documents", "Use the camera to make a clean, searchable PDF", Icons.Outlined.DocumentScanner),
+    OCR("ocr", "Make PDF searchable", "Recognise text in scanned pages (OCR)", Icons.Outlined.FindInPage),
+    DIGITAL_SIGN("digital-sign", "Sign with digital ID", "A certificate signature that proves who signed", Icons.Outlined.VerifiedUser),
     MERGE("merge", "Merge PDFs", "Combine several PDFs into one", Icons.Outlined.MergeType),
     SPLIT("split", "Split PDF", "Break a PDF into smaller files", Icons.Outlined.ContentCut),
     ORGANIZE("organize", "Organize pages", "Reorder, rotate, delete or extract pages", Icons.Outlined.GridView),

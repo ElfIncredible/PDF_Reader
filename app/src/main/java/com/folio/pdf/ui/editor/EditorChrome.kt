@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatUnderlined
+import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.HorizontalRule
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Save
@@ -146,16 +147,19 @@ fun PageNavRow(page: Int, count: Int, onPrevious: () -> Unit, onNext: () -> Unit
     }
 }
 
-private data class ToolItem(val tool: Tool?, val icon: ImageVector, val label: String)
+private enum class Special { IMAGE, SIGN }
+
+private data class ToolItem(val tool: Tool?, val icon: ImageVector, val label: String, val special: Special? = null)
 
 private val toolItems = listOf(
+    ToolItem(null, Icons.Outlined.Gesture, "Sign", Special.SIGN),
     ToolItem(Tool.SELECT, Icons.Outlined.TouchApp, "Select"),
     ToolItem(Tool.HIGHLIGHT, Icons.Outlined.BorderColor, "Highlight"),
     ToolItem(Tool.UNDERLINE, Icons.Outlined.FormatUnderlined, "Underline"),
     ToolItem(Tool.STRIKEOUT, Icons.Outlined.StrikethroughS, "Strike"),
     ToolItem(Tool.PEN, Icons.Outlined.Draw, "Pen"),
     ToolItem(Tool.TEXT, Icons.Outlined.TextFields, "Text"),
-    ToolItem(null, Icons.Outlined.Image, "Image"),
+    ToolItem(null, Icons.Outlined.Image, "Image", Special.IMAGE),
     ToolItem(Tool.RECTANGLE, Icons.Outlined.CropSquare, "Box"),
     ToolItem(Tool.OVAL, Icons.Outlined.Circle, "Circle"),
     ToolItem(Tool.LINE, Icons.Outlined.HorizontalRule, "Line"),
@@ -164,7 +168,7 @@ private val toolItems = listOf(
 )
 
 @Composable
-fun EditToolbar(current: Tool, onTool: (Tool) -> Unit, onImage: () -> Unit) {
+fun EditToolbar(current: Tool, onTool: (Tool) -> Unit, onImage: () -> Unit, onSign: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -181,7 +185,13 @@ fun EditToolbar(current: Tool, onTool: (Tool) -> Unit, onImage: () -> Unit) {
                         if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
                         RoundedCornerShape(12.dp),
                     )
-                    .clickable { if (item.tool == null) onImage() else onTool(item.tool) }
+                    .clickable {
+                        when (item.special) {
+                            Special.IMAGE -> onImage()
+                            Special.SIGN -> onSign()
+                            null -> item.tool?.let(onTool)
+                        }
+                    }
                     .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp),

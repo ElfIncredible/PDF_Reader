@@ -154,6 +154,10 @@ class ViewerViewModel(
     val editorState: StateFlow<EditorState> = editor.state
 
     /** False until the file's existing annotations have been read. */
+    /** Fillable form fields in this PDF (0 if none). */
+    private val _formFields = MutableStateFlow(0)
+    val formFields: StateFlow<Int> = _formFields.asStateFlow()
+
     private val _annotationsReady = MutableStateFlow(false)
     val annotationsReady: StateFlow<Boolean> = _annotationsReady.asStateFlow()
 
@@ -230,6 +234,7 @@ class ViewerViewModel(
                 onAnnotations = { pdf ->
                     val found = runCatching { AnnotationReader.read(pdf, imageDir) { ids.incrementAndGet() } }
                         .getOrDefault(emptyList())
+                    _formFields.value = com.folio.pdf.pdf.Forms.countFillable(pdf)
                     viewModelScope.launch {
                         // Never overwrite edits the user has already made.
                         if (!editor.state.value.dirty) editor.load(found)
@@ -441,6 +446,33 @@ class ViewerViewModel(
             create(ImageStamp(id, page, NRect(left, top, left + width, top + h), file.absolutePath, imageAspect))
         }.onFailure {
             _events.send(ViewerEvent.Message("Couldn't add that image"))
+        }
+    }
+
+    /** Places a saved signature near the bottom of the page, ready to drag into place. */
+    fun addSignature(page: Int, signature: File) = viewModelScope.launch {
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                imageDir.mkdirs()
+                val id = newId()
+                // Copy, so deleting the saved signature later doesn't break this document.
+                val copy = File(imageDir, "signature-$id.png")
+                signature.copyTo(copy, overwrite = true)
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(copy.absolutePath, bounds)
+                if (bounds.outWidth <= 0) error("Unreadable signature")
+                Triple(id, copy, bounds.outHeight.toFloat() / bounds.outWidth)
+            }
+        }
+        result.onSuccess { (id, file, imageAspect) ->
+            val aspect = pageAspect(page)
+            val w = 0.34f
+            val h = w * imageAspect / aspect
+            val left = (1f - w) / 2
+            val top = (0.8f - h).coerceAtLeast(0.02f)
+            create(ImageStamp(id, page, NRect(left, top, left + w, top + h), file.absolutePath, imageAspect))
+        }.onFailure {
+            _events.send(ViewerEvent.Message("Couldn't add that signature"))
         }
     }
 

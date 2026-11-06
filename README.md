@@ -1,7 +1,7 @@
 # Folio PDF — Android PDF reader & editor
 
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
-Current milestone: **Phase 4: PDF toolkit** (built on Phases 1–3).
+Current milestone: **Phase 5: Signing and scanning** (built on Phases 1–4).
 
 ## Run it
 
@@ -12,7 +12,41 @@ Current milestone: **Phase 4: PDF toolkit** (built on Phases 1–3).
 
 Command line: `./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
 
-## What Phase 4 adds
+## What Phase 5 adds
+
+Home now starts with **Sign · Scan · Merge · All tools**.
+
+| Feature | How |
+|---|---|
+| **Handwritten signatures** | **Sign** on Home (or ✏️ → **Sign** in the editor). Create a signature once: **Draw** it with your finger, **Type** your name in a script style, or take a **Photo** of it on paper (Folio removes the paper and keeps the ink). Saved signatures stay on the phone. Tap one to place it, drag and resize it, then 💾 Save. It's written as a standard stamp annotation. |
+| **Fill forms** | Tools → **Fill a form**, or tap *Fill it in* on the banner Folio shows when a PDF has a form. Every field appears as a simple input (text, check box, choice, drop-down), grouped by page. **Save**, **Save as a copy**, or **Save a final copy** (flattened: answers become part of the page and show in every app). |
+| **Camera scanner** | **Scan**: Google's ML Kit scanner finds edges, crops, straightens and cleans each page (you can also import photos). Reorder pages, then save as a PDF. |
+| **OCR (text recognition)** | Scans are made **searchable** by default: an invisible text layer is added, so Phase 2's search, selection and copy work on scans. For existing scanned PDFs: Tools → **Make PDF searchable**, or tap *Make searchable* on the banner. On-device, nothing uploaded; Latin-script languages (English, Swahili, French, Spanish…). |
+| **Digital signatures** | ⋮ → **Sign with digital ID**. **Create** a personal ID (self-signed RSA-2048 certificate) or **import** a `.p12`/`.pfx` from your employer, a government or a certificate authority. Signs as PAdES (`adbe.pkcs7.detached`, SHA-256) using an incremental update, into a new copy. The password is never stored. |
+
+**Signing tip:** sign by hand first (✏️ → Sign → 💾), then sign digitally last. Any change after a
+digital signature shows it as modified.
+
+**Limits:** Android's renderer doesn't draw form fields, so in Folio's reader your form answers
+appear once you save a *final copy*. Other apps show them either way. XFA forms (an Adobe-only
+format) can't be filled. The scanner needs Google Play services, which most Android phones,
+Xiaomi included, have.
+
+New dependencies: ML Kit Document Scanner 16.0.0, ML Kit Text Recognition 16.0.1 (bundled model,
+works offline), BouncyCastle 1.78.1.
+Code: `sign/`, `ocr/`, `pdf/Forms.kt`, `pdf/OcrPdf.kt`, `ui/sign/`, `ui/forms/`.
+
+### Phase 5 test checklist
+- [ ] Home → **Sign** → pick a PDF → the editor opens with *Your signatures* → **New signature** → Draw → Save → it's placed → drag/resize → 💾 Save → reopen: signature is there
+- [ ] Type and Photo signatures (a photo of ink on white paper comes out with a transparent background)
+- [ ] Open a PDF form (e.g. a government application) → banner *Fill it in* → type answers, tick boxes → **Save a final copy** → open: answers visible
+- [ ] **Scan** 3 pages → Save (searchable on) → open → 🔍 search for a word on the page → it's found and highlighted
+- [ ] Open an old scanned PDF → banner *Make searchable* → after saving, search and long-press selection work
+- [ ] ⋮ → **Sign with digital ID** → Create one → sign → open the signed copy in Adobe Acrobat Reader: it shows a signature panel (self-signed IDs are shown as "validity unknown"; that's expected)
+- [ ] Wrong digital ID password → a clear "Wrong password" message
+- [ ] Import a `.p12` file (if you have one) → its name and issuer show
+
+## What Phase 4 added
 
 Open tools from **Home** (Merge · Compress · Pages · All tools) or from the reader's **⋮ menu**
 (Organize pages · Compress · Split · PDF to images, acting on the open file).
@@ -176,7 +210,7 @@ ui/ (Compose screens + ViewModels)  →  data/ (repositories)  →  Room · Data
 | **2 – Reader** ✅ | Search, text selection, bookmarks, contents, page grid, reading modes, history & favourites | Done: see *What Phase 2 adds* above. |
 | **3 – Editing** ✅ | Highlight, underline, ink, shapes, text boxes, images, undo/redo, save | Compose `Canvas` overlay per page with a command-pattern undo stack. Write real PDF annotations with **PdfBox-Android** (`com.tom-roush:pdfbox-android`, Apache-2.0), then save a copy or overwrite through SAF. |
 | **4 – Toolkit** ✅ | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
-| **5 – Sign & scan** | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
+| **5 – Sign & scan** ✅ | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
 | **6 – Advanced** | Password protect/unlock, true redaction, batch jobs, compare two PDFs, metadata editor, PDF/A | PdfBox AES-256 encryption. Redaction rasterises affected pages so hidden text is really gone. A WorkManager batch queue. Comparison uses a per-page text diff plus an image diff overlay. Metadata via PDDocumentInformation/XMP. Full PDF/A validation is server-side (Python + veraPDF/Ghostscript). |
 | **7 – AI & speed** | Summarise, ask questions, table extraction, translation, performance | A **Python FastAPI backend**: text → chunk → embed → LLM for summaries and Q&A with page citations; tables via `pdfplumber`/`camelot` → CSV/Excel. On-device translation with ML Kit. Performance work: bitmap pooling, tile cache, prefetching nearby pages, Baseline Profiles, LeakCanary, large-file tests (1,000+ pages). |
 
@@ -186,9 +220,10 @@ syntax is close to Python's (`val`/`var`, lambdas, data classes, no semicolons).
 A small **FastAPI** service (Phases 4, 6 and 7) handles what phones do poorly: Office conversion,
 PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working offline without it.
 
-## Next steps (Phase 5 kick-off: signing & scanning)
-1. **Signatures:** draw / type / photograph a signature once, save it, and stamp it anywhere (reusing Phase 3's image stamp).
-2. **Forms:** read AcroForm fields with PdfBox, fill them in a simple form view, and save (with an optional "flatten").
-3. **Scanner + OCR:** ML Kit Document Scanner (edges, crop, filters) → PDF, then ML Kit text recognition to add an invisible text layer, so scans become searchable and selectable with Phase 2's tools.
-4. **Digital signatures (certificates):** PAdES signing with PdfBox + BouncyCastle.
-5. Background jobs with notifications (WorkManager) for long toolkit tasks.
+## Next steps (Phase 6 kick-off: advanced)
+1. **Passwords:** open password-protected PDFs (ask for the password), add or remove a password with AES-256, and set printing/copying permissions.
+2. **Redaction:** mark areas or search results and *truly* remove them (rasterise those pages so hidden text is really gone).
+3. **Batch processing:** run compress / OCR / images→PDF over many files in the background (WorkManager + notifications).
+4. **Compare two PDFs:** a page-by-page text diff with highlighted changes.
+5. **Metadata & PDF/A:** edit title/author/subject/keywords, and check PDF/A basics (full validation via the Phase 7 server).
+6. **Signature check:** verify digital signatures in a PDF (intact? who signed? trusted?).

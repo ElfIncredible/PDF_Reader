@@ -201,9 +201,9 @@ private fun QuickActions(
             ActionTile(Icons.Outlined.FolderOpen, "Browse", onBrowse, Modifier.weight(1f), primary = true)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ActionTile(ToolKind.SIGN.icon, "Sign", { onTool(ToolKind.SIGN) }, Modifier.weight(1f))
+            ActionTile(ToolKind.SCAN.icon, "Scan", { onTool(ToolKind.SCAN) }, Modifier.weight(1f))
             ActionTile(ToolKind.MERGE.icon, "Merge", { onTool(ToolKind.MERGE) }, Modifier.weight(1f))
-            ActionTile(ToolKind.COMPRESS.icon, "Compress", { onTool(ToolKind.COMPRESS) }, Modifier.weight(1f))
-            ActionTile(ToolKind.ORGANIZE.icon, "Pages", { onTool(ToolKind.ORGANIZE) }, Modifier.weight(1f))
             ActionTile(Icons.Outlined.Apps, "All tools", { onTool(null) }, Modifier.weight(1f))
         }
     }

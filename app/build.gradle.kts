@@ -13,8 +13,8 @@ android {
         applicationId = "com.folio.pdf"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0-phase4"
+        versionCode = 5
+        versionName = "0.5.0-phase5"
     }
 
     buildTypes {
@@ -33,6 +33,19 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+    packaging {
+        resources {
+            // BouncyCastle jars each carry these; Android doesn't need them.
+            excludes += setOf(
+                "META-INF/versions/**/OSGI-INF/MANIFEST.MF",
+                "META-INF/BCKEY.DSA",
+                "META-INF/BCKEY.SF",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+            )
+        }
     }
     buildFeatures {
         compose = true
@@ -66,4 +79,10 @@ dependencies {
 
     // PDF structure: text, outline (Phase 2); editing & toolkit (Phases 3-6)
     implementation(libs.pdfbox.android)
+
+    // Phase 5: camera scanner + on-device text recognition (OCR), certificate signatures
+    implementation(libs.mlkit.document.scanner)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.bouncycastle.prov)
+    implementation(libs.bouncycastle.pkix)
 }

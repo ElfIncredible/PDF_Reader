@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
@@ -35,10 +34,9 @@ import androidx.compose.ui.unit.dp
 private data class Upcoming(val title: String, val note: String, val icon: ImageVector)
 
 private val upcoming = listOf(
-    Upcoming("Sign documents", "Phase 5", Icons.Outlined.Draw),
-    Upcoming("Fill forms", "Phase 5", Icons.Outlined.Edit),
-    Upcoming("Scan with camera + OCR", "Phase 5", Icons.Outlined.DocumentScanner),
     Upcoming("Passwords & redaction", "Phase 6", Icons.Outlined.Lock),
+    Upcoming("Compare two PDFs, batch jobs, PDF/A", "Phase 6", Icons.Outlined.Edit),
+    Upcoming("Summarise, ask questions, translate", "Phase 7", Icons.Outlined.Draw),
     Upcoming("Word, Excel, PowerPoint → PDF", "Phase 7 · needs the Folio server", Icons.Outlined.CloudUpload),
 )
 

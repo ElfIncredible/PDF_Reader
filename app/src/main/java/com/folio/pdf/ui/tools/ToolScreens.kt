@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PictureAsPdf
@@ -50,11 +52,13 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -76,7 +80,11 @@ import com.folio.pdf.pdf.ImageFormat
 import com.folio.pdf.pdf.PageRanges
 import com.folio.pdf.pdf.PaperSize
 import com.folio.pdf.ui.components.PdfThumbnail
+import com.folio.pdf.util.findActivity
 import com.folio.pdf.util.formatFileSize
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 
 private const val PDF = "application/pdf"
 
@@ -129,7 +137,10 @@ fun ToolScreen(
                 ToolKind.IMAGES_TO_PDF -> ImagesContent(vm, inputs, busy)
                 ToolKind.PDF_TO_IMAGES -> PdfToImagesContent(vm, inputs, busy)
                 ToolKind.TEXT_TO_PDF -> TextContent(vm, inputs, busy)
-                ToolKind.ORGANIZE -> Unit
+                ToolKind.SCAN -> ScanContent(vm, inputs, busy)
+                ToolKind.OCR -> OcrContent(vm, inputs, busy)
+                // These have their own screens.
+                ToolKind.ORGANIZE, ToolKind.SIGN, ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN -> Unit
             }
             JobCard(
                 job = job,
@@ -353,6 +364,92 @@ private fun TextContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
     )
 }
 
+// ---- Scan ----------------------------------------------------------------------
+
+@Composable
+private fun ScanContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean) {
+    val context = LocalContext.current
+    var recognise by rememberSaveable { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            GmsDocumentScanningResult.fromActivityResultIntent(result.data)?.pages
+                ?.map { it.imageUri }?.let(vm::add)
+        }
+    }
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF)) { uri ->
+        uri?.let { vm.scanToPdf(recognise, it) }
+    }
+    fun startScan() {
+        val activity = context.findActivity() ?: return
+        val options = GmsDocumentScannerOptions.Builder()
+            .setGalleryImportAllowed(true)
+            .setPageLimit(60)
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .build()
+        GmsDocumentScanning.getClient(options).getStartScanIntent(activity)
+            .addOnSuccessListener { sender -> error = null; scanner.launch(IntentSenderRequest.Builder(sender).build()) }
+            .addOnFailureListener {
+                error = "The scanner isn't available: ${it.message ?: "update Google Play services and try again"}"
+            }
+    }
+
+    Section("Pages") {
+        if (inputs.isEmpty()) {
+            Hint("Point the camera at a document. The scanner finds the edges, straightens and cleans each page. You can also import photos.")
+        }
+        inputs.forEachIndexed { i, input ->
+            InputRow(input, icon = Icons.Outlined.Image, onRemove = { vm.remove(i) },
+                onUp = { vm.move(i, -1) }.takeIf { i > 0 },
+                onDown = { vm.move(i, +1) }.takeIf { i < inputs.size - 1 })
+        }
+        Button(onClick = ::startScan, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Icon(Icons.Outlined.DocumentScanner, null)
+            Text(if (inputs.isEmpty()) "Start scanning" else "Scan more pages", Modifier.padding(start = 8.dp))
+        }
+        error?.let { ErrorText(it) }
+    }
+    if (inputs.isNotEmpty()) {
+        Section("Text recognition (OCR)") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Make text searchable", style = MaterialTheme.typography.bodyLarge)
+                    Hint("Find, select and copy words later. Works on this phone; nothing is uploaded. Latin-script languages.")
+                }
+                Switch(checked = recognise, onCheckedChange = { recognise = it })
+            }
+        }
+        RunButton(
+            text = "Save ${inputs.size}-page PDF",
+            enabled = !busy,
+            onClick = {
+                val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH.mm", java.util.Locale.getDefault()).format(java.util.Date())
+                save.launch("Scan $stamp.pdf")
+            },
+        )
+    }
+}
+
+// ---- OCR an existing PDF -------------------------------------------------------
+
+@Composable
+private fun OcrContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean) {
+    val input = inputs.firstOrNull()
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF)) { uri -> uri?.let(vm::ocr) }
+    SinglePdfPicker(vm, input, busy)
+    Hint(
+        "Pages that are pictures of text (scans, photos) get an invisible layer of recognised text, so you can " +
+            "search, select and copy it. Pages that already have text are left as they are. Recognises Latin-script " +
+            "languages (English, French, Swahili, Spanish…) on your phone.",
+    )
+    RunButton(
+        text = "Recognise text",
+        enabled = input != null && input.error == null && input.pages != null && !busy,
+        onClick = { save.launch("${vm.baseName()} (searchable).pdf") },
+    )
+}
+
 // ---- Shared pieces -------------------------------------------------------------
 
 @Composable
@@ -367,7 +464,7 @@ private fun SinglePdfPicker(vm: ToolViewModel, input: ToolInput?, busy: Boolean)
 }
 
 @Composable
-private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         content()
@@ -375,17 +472,17 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
 }
 
 @Composable
-private fun Hint(text: String) {
+internal fun Hint(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
-private fun ErrorText(text: String) {
+internal fun ErrorText(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
 }
 
 @Composable
-private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+internal fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         options.forEachIndexed { i, option ->
             SegmentedButton(
@@ -398,7 +495,7 @@ private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, onSe
 }
 
 @Composable
-private fun InputRow(
+internal fun InputRow(
     input: ToolInput,
     onRemove: () -> Unit,
     icon: ImageVector = Icons.Outlined.PictureAsPdf,
@@ -434,12 +531,12 @@ private fun InputRow(
 }
 
 @Composable
-private fun RunButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun RunButton(text: String, enabled: Boolean, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(text) }
 }
 
 @Composable
-private fun JobCard(
+internal fun JobCard(
     job: JobState,
     onOpen: (Uri) -> Unit,
     onShare: (JobState.Done) -> Unit,
@@ -499,7 +596,7 @@ private fun JobCard(
     }
 }
 
-private fun share(context: Context, uris: List<Uri>, mime: String) {
+internal fun share(context: Context, uris: List<Uri>, mime: String) {
     if (uris.isEmpty()) return
     val intent = if (uris.size == 1) {
         Intent(Intent.ACTION_SEND).apply { putExtra(Intent.EXTRA_STREAM, uris.first()) }

@@ -3,3 +3,7 @@
 -dontwarn org.bouncycastle.**
 -keep class com.tom_roush.pdfbox.** { *; }
 -keep class com.tom_roush.fontbox.** { *; }
+
+# BouncyCastle is used for certificate signatures; keep its providers and algorithms.
+-keep class org.bouncycastle.** { *; }
+-dontwarn javax.naming.**

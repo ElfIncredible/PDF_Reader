@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -67,6 +69,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ViewerScreen(
     uri: Uri,
+    startAction: String = "",
     onBack: () -> Unit,
     onOpenDocument: (Uri) -> Unit,
     onOpenTool: (ToolKind, Uri) -> Unit,
@@ -97,7 +100,7 @@ fun ViewerScreen(
                 modifier = Modifier.align(Alignment.Center),
             ) { Button(onClick = onBack) { Text("Go back") } }
         }
-        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, onBack, onOpenDocument, onOpenTool)
+        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, startAction, onBack, onOpenDocument, onOpenTool)
     }
 }
 
@@ -122,6 +125,7 @@ private fun PdfReader(
     vm: ViewerViewModel,
     uri: Uri,
     prefs: ReaderPrefs,
+    startAction: String,
     onBack: () -> Unit,
     onOpenDocument: (Uri) -> Unit,
     onOpenTool: (ToolKind, Uri) -> Unit,
@@ -139,6 +143,7 @@ private fun PdfReader(
     val outline by vm.outline.collectAsStateWithLifecycle()
     val editor by vm.editorState.collectAsStateWithLifecycle()
     val annotationsReady by vm.annotationsReady.collectAsStateWithLifecycle()
+    val formFields by vm.formFields.collectAsStateWithLifecycle()
 
     var page by rememberSaveable { mutableIntStateOf(state.initialPage) }
     var navigator by remember { mutableStateOf<PageNavigator?>(null) }
@@ -155,6 +160,18 @@ private fun PdfReader(
     var editing by rememberSaveable { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
     var exitAfterSave by remember { mutableStateOf(false) }
+    var actionDone by rememberSaveable { mutableStateOf(false) }
+    var signOnOpen by rememberSaveable { mutableStateOf(false) }
+    var bannerDismissed by rememberSaveable { mutableStateOf(false) }
+
+    // Opened via "Sign a PDF": go straight to the editor with signatures showing.
+    LaunchedEffect(annotationsReady) {
+        if (startAction == "sign" && annotationsReady && !actionDone) {
+            actionDone = true
+            signOnOpen = true
+            editing = true
+        }
+    }
 
     val saveCopyLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/pdf"),
@@ -252,6 +269,7 @@ private fun PdfReader(
             startPage = page,
             onDone = { p ->
                 editing = false
+                signOnOpen = false
                 vm.select(null)
                 page = p
                 jumpTo(p)
@@ -259,6 +277,7 @@ private fun PdfReader(
             },
             onSave = { vm.save() },
             onSaveCopy = { saveCopy() },
+            startWithSignature = signOnOpen,
         )
         if (confirmExit) ExitDialog(onSave = { confirmExit = false; exitAfterSave = true; vm.save() }, onDiscard = { confirmExit = false; onBack() }, onCancel = { confirmExit = false })
         return
@@ -339,7 +358,8 @@ private fun PdfReader(
                         )
                         SearchStatus(index, search)
                     }
-                    else -> ReaderTopBar(
+                    else -> Column {
+                        ReaderTopBar(
                         title = state.title,
                         bookmarked = bookmarks.any { it.page == page },
                         favourite = isFavourite,
@@ -373,6 +393,21 @@ private fun PdfReader(
                             else onOpenTool(kind, uri)
                         },
                     )
+                        // Helpful nudges for scanned PDFs and forms.
+                        val scanned = index.finished && !index.failed && !index.hasText
+                        if (!bannerDismissed && (scanned || formFields > 0)) {
+                            ReaderBanner(
+                                text = if (formFields > 0) "This PDF has a form with $formFields fields."
+                                else "This looks like a scan, so its text can't be searched yet.",
+                                action = if (formFields > 0) "Fill it in" else "Make searchable",
+                                onAction = {
+                                    val kind = if (formFields > 0) ToolKind.FILL_FORM else ToolKind.OCR
+                                    if (editor.dirty) toast("Save your edits first (✏️ → 💾)") else onOpenTool(kind, uri)
+                                },
+                                onDismiss = { bannerDismissed = true },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -459,6 +494,25 @@ private fun PdfReader(
             },
             onDismiss = { showResults = false },
         )
+    }
+}
+
+@Composable
+private fun ReaderBanner(text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        androidx.compose.foundation.layout.Row(
+            Modifier.padding(start = 16.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            androidx.compose.material3.TextButton(onClick = onAction) { Text(action) }
+            IconButton(onClick = onDismiss) {
+                Icon(androidx.compose.material.icons.Icons.Outlined.Close, "Dismiss")
+            }
+        }
     }
 }
 

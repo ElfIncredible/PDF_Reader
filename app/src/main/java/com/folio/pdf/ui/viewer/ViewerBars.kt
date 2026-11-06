@@ -151,7 +151,10 @@ fun ReaderTopBar(
                         onClick = { menu = false; onShare() },
                     )
                     HorizontalDivider()
-                    listOf(ToolKind.ORGANIZE, ToolKind.COMPRESS, ToolKind.SPLIT, ToolKind.PDF_TO_IMAGES).forEach { kind ->
+                    listOf(
+                        ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN, ToolKind.OCR,
+                        ToolKind.ORGANIZE, ToolKind.COMPRESS, ToolKind.SPLIT, ToolKind.PDF_TO_IMAGES,
+                    ).forEach { kind ->
                         DropdownMenuItem(
                             text = { Text(kind.title) },
                             leadingIcon = { Icon(kind.icon, null) },

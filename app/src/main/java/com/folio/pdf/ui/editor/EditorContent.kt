@@ -28,6 +28,7 @@ import com.folio.pdf.edit.NPoint
 import com.folio.pdf.edit.TextNote
 import com.folio.pdf.edit.Tool
 import com.folio.pdf.pdf.PdfFile
+import com.folio.pdf.ui.sign.SignatureSheet
 import com.folio.pdf.ui.viewer.ViewerViewModel
 
 private sealed interface TextDialog {
@@ -47,7 +48,9 @@ fun EditorContent(
     onDone: (page: Int) -> Unit,
     onSave: () -> Unit,
     onSaveCopy: () -> Unit,
+    startWithSignature: Boolean = false,
 ) {
+    var showSignatures by rememberSaveable { mutableStateOf(startWithSignature) }
     var page by rememberSaveable { mutableIntStateOf(startPage.coerceIn(0, doc.pageCount - 1)) }
     val editor by vm.editorState.collectAsStateWithLifecycle()
     val tools by vm.tools.collectAsStateWithLifecycle()
@@ -134,9 +137,20 @@ fun EditorContent(
                     onImage = {
                         imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     },
+                    onSign = { showSignatures = true },
                 )
             }
         }
+    }
+
+    if (showSignatures) {
+        SignatureSheet(
+            onPick = { file ->
+                showSignatures = false
+                vm.addSignature(page, file)
+            },
+            onDismiss = { showSignatures = false },
+        )
     }
 
     when (val d = textDialog) {
