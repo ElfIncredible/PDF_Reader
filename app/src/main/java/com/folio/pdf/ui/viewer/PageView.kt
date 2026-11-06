@@ -43,7 +43,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.rememberTextMeasurer
 import com.folio.pdf.data.ColorMode
+import com.folio.pdf.edit.Annotation
+import com.folio.pdf.ui.editor.drawAnnotations
+import com.folio.pdf.ui.editor.rememberAnnotationImages
 import com.folio.pdf.pdf.PageText
 import com.folio.pdf.pdf.PdfFile
 import com.folio.pdf.pdf.SearchHit
@@ -60,6 +64,8 @@ class PageEnv(
     val textVersion: Int,
     val pageText: (Int) -> PageText?,
     val hitsByPage: Map<Int, List<SearchHit>>,
+    /** Annotations per page, drawn over the page (Android's renderer doesn't draw them). */
+    val annotationsByPage: Map<Int, List<Annotation>>,
     val activeHit: SearchHit?,
     val selection: PageSelection?,
     val onSelectionChange: (PageSelection?) -> Unit,
@@ -125,9 +131,9 @@ fun PageView(
 ) {
     var aspect by remember(index) { mutableFloatStateOf(env.placeholderAspect) }
     // Keep showing the previous bitmap while a sharper one renders, so zooming never flickers.
-    var bitmap by remember(index) { mutableStateOf<Bitmap?>(env.doc.cachedPage(index, renderWidthPx)) }
+    var bitmap by remember(env.doc, index) { mutableStateOf<Bitmap?>(env.doc.cachedPage(index, renderWidthPx)) }
 
-    LaunchedEffect(index, renderWidthPx) {
+    LaunchedEffect(env.doc, index, renderWidthPx) {
         env.doc.pageSize(index)?.let { aspect = it.aspect }
         env.doc.renderPage(index, renderWidthPx)?.let { bitmap = it }
     }
@@ -146,6 +152,10 @@ fun PageView(
     val selectionRects = remember(selected, pageText) {
         if (selected == null || pageText == null) emptyList() else pageText.rects(selected)
     }
+
+    val pageAnnotations = env.annotationsByPage[index].orEmpty()
+    val annotationImages = rememberAnnotationImages(pageAnnotations)
+    val measurer = rememberTextMeasurer()
 
     val latestEnv by rememberUpdatedState(env)
     val latestText by rememberUpdatedState(pageText)
@@ -210,6 +220,9 @@ fun PageView(
                     strokeWidth = 2.dp,
                     color = Color.Gray,
                 )
+            }
+            if (pageAnnotations.isNotEmpty()) {
+                Canvas(Modifier.fillMaxSize()) { drawAnnotations(pageAnnotations, annotationImages, measurer) }
             }
             if (hitRects.isNotEmpty() || activeRects.isNotEmpty() || selectionRects.isNotEmpty()) {
                 Canvas(Modifier.fillMaxSize()) {

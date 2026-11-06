@@ -1,7 +1,7 @@
 # Folio PDF — Android PDF reader & editor
 
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
-Current milestone: **Phase 2: PDF reader** (built on Phase 1: Foundation and UI).
+Current milestone: **Phase 3: PDF editing** (built on Phases 1–2).
 
 ## Run it
 
@@ -12,7 +12,52 @@ Current milestone: **Phase 2: PDF reader** (built on Phase 1: Foundation and UI)
 
 Command line: `./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
 
-## What Phase 2 adds
+## What Phase 3 adds
+
+Tap the **✏️ pencil** in the reader to start editing. You edit one page at a time; the arrows move between pages.
+**One finger** uses the tool; **two fingers** zoom and move the page.
+
+| Tool | How |
+|---|---|
+| **Highlight / Underline / Strike** | Drag across text (it snaps to the words) or tap a single word. On scanned pages, drag a box. |
+| **Pen** | Draw freehand. Pick a colour and thickness. |
+| **Text** | Tap where the text should go, then type. Edit or resize it later with Select. |
+| **Image** | Pick a photo or signature image; it's placed in the middle of the page. |
+| **Box / Circle / Line / Arrow** | Drag from corner to corner (or start to end). |
+| **Select** | Tap anything you added: drag to move, drag the round handle to resize, change colour, edit text, delete. |
+| **Eraser** | Tap or rub over anything you added to remove it. |
+| **Undo / Redo** | Top bar. A whole drag counts as one step (up to 100 steps). |
+| **Save** | 💾 → **Save** writes into the original file. **Save as a copy…** makes a new PDF and opens it. If Folio isn't allowed to change the original (e.g. a file opened from an email), it asks where to save a copy. Leaving with unsaved changes asks first. |
+
+**Standard PDF annotations.** Edits are saved as real PDF annotations (Highlight, Underline,
+StrikeOut, Ink, Square, Circle, Line, FreeText, Stamp) with appearance streams, so Adobe Acrobat,
+Chrome, Edge, Preview and others show them, and can edit them too. Folio reads these annotation
+types back when you open a file (including ones made in other apps), so you can keep editing them.
+Rotated pages are handled.
+
+**Why Folio draws annotations itself:** Android's built-in page renderer ignores annotations, so
+Folio draws its own layer on top. Annotation types Folio doesn't edit (links, sticky-note icons,
+form fields, other apps' stamps) are kept in the file untouched, but aren't shown by Folio yet.
+Form fields arrive in Phase 5.
+
+Code: `edit/` (model, undo/redo), `pdf/AnnotationIO.kt` (PDF read/write), `ui/editor/` (editor UI).
+The model and undo/redo logic are covered by a small test (all passing).
+
+### Phase 3 test checklist
+- [ ] ✏️ → Highlight: drag across a sentence → yellow highlight snapped to the text; tap a word → just that word
+- [ ] Pen: draw; change colour and thickness; Undo removes the last stroke, Redo brings it back
+- [ ] Text: tap the page, type two lines → appears; Select → Edit changes it; the handle resizes it
+- [ ] Image: add a photo → appears centred; move and resize it with Select
+- [ ] Box / Circle / Arrow draw where you drag; Eraser removes them
+- [ ] Two-finger pinch zooms the page while editing; one finger keeps drawing
+- [ ] Save → "Saved"; close and reopen the PDF → all edits are still there and can still be edited
+- [ ] Open the saved file in another app (Drive / Chrome / Acrobat) → highlights, ink, shapes, text and images show
+- [ ] Open a PDF that was annotated elsewhere → its highlights/ink/shapes appear in Folio and can be moved or deleted
+- [ ] Open a PDF from an email or WhatsApp, edit, Save → Folio asks where to save a copy, then opens the copy
+- [ ] Edit, then press Back without saving → "Save your changes?" dialog
+- [ ] A rotated (landscape) page: add text → upright both in Folio and in other apps
+
+## What Phase 2 added
 
 | Feature | How to use it | Code |
 |---|---|---|
@@ -91,7 +136,7 @@ ui/ (Compose screens + ViewModels)  →  data/ (repositories)  →  Room · Data
 | Phase | Features | How |
 |---|---|---|
 | **2 – Reader** ✅ | Search, text selection, bookmarks, contents, page grid, reading modes, history & favourites | Done: see *What Phase 2 adds* above. |
-| **3 – Editing** | Highlight, underline, ink, shapes, text boxes, images, undo/redo, save | Compose `Canvas` overlay per page with a command-pattern undo stack. Write real PDF annotations with **PdfBox-Android** (`com.tom-roush:pdfbox-android`, Apache-2.0), then save a copy or overwrite through SAF. |
+| **3 – Editing** ✅ | Highlight, underline, ink, shapes, text boxes, images, undo/redo, save | Compose `Canvas` overlay per page with a command-pattern undo stack. Write real PDF annotations with **PdfBox-Android** (`com.tom-roush:pdfbox-android`, Apache-2.0), then save a copy or overwrite through SAF. |
 | **4 – Toolkit** | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
 | **5 – Sign & scan** | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
 | **6 – Advanced** | Password protect/unlock, true redaction, batch jobs, compare two PDFs, metadata editor, PDF/A | PdfBox AES-256 encryption. Redaction rasterises affected pages so hidden text is really gone. A WorkManager batch queue. Comparison uses a per-page text diff plus an image diff overlay. Metadata via PDDocumentInformation/XMP. Full PDF/A validation is server-side (Python + veraPDF/Ghostscript). |
@@ -103,7 +148,7 @@ syntax is close to Python's (`val`/`var`, lambdas, data classes, no semicolons).
 A small **FastAPI** service (Phases 4, 6 and 7) handles what phones do poorly: Office conversion,
 PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working offline without it.
 
-## Next steps (Phase 3 kick-off: editing)
-1. An annotation model (highlight, underline, strike, ink, shape, text box, image) with a command-based undo/redo stack.
-2. An editing toolbar plus a Compose drawing overlay on each page, reusing Phase 2's character boxes for text-snapped highlights.
-3. Save: write real PDF annotations with PdfBox, as "Save" (overwrite via SAF) or "Save as copy".
+## Next steps (Phase 4 kick-off: toolkit)
+1. A Tools screen (the "Soon" tiles on Home): Merge, Split, Reorder/Rotate/Delete pages, Extract, Compress, Images → PDF, PDF → images.
+2. A page organiser with a drag-to-reorder thumbnail grid (reusing Phase 2's thumbnails).
+3. Long jobs run in the background (WorkManager) with progress notifications; results saved via "Save as".

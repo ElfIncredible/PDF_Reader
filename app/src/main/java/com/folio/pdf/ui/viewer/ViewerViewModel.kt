@@ -1,6 +1,10 @@
 package com.folio.pdf.ui.viewer
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.os.Build
 import android.net.Uri
 import android.os.SystemClock
 import androidx.lifecycle.ViewModel
@@ -9,6 +13,19 @@ import com.folio.pdf.AppContainer
 import com.folio.pdf.data.ColorMode
 import com.folio.pdf.data.ScrollMode
 import com.folio.pdf.data.db.Bookmark
+import com.folio.pdf.edit.Annotation
+import com.folio.pdf.edit.AnnotationEditor
+import com.folio.pdf.edit.EditorState
+import com.folio.pdf.edit.ImageStamp
+import com.folio.pdf.edit.NPoint
+import com.folio.pdf.edit.NRect
+import com.folio.pdf.edit.TextNote
+import com.folio.pdf.edit.Tool
+import com.folio.pdf.edit.ToolSettings
+import com.folio.pdf.pdf.AnnotationReader
+import com.folio.pdf.pdf.AnnotationWriter
+import com.folio.pdf.pdf.Thumbnails
+import com.folio.pdf.ui.editor.EditorActions
 import com.folio.pdf.pdf.OutlineEntry
 import com.folio.pdf.pdf.PageText
 import com.folio.pdf.pdf.PdfFile
@@ -18,6 +35,8 @@ import com.folio.pdf.pdf.TextSearch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,12 +48,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.FileNotFoundException
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReferenceArray
 
 sealed interface ViewerUiState {
@@ -70,6 +93,17 @@ data class SearchState(
     val currentHit: SearchHit? get() = hits.getOrNull(current)
 }
 
+/** One-off messages from the ViewModel to the screen. */
+sealed interface ViewerEvent {
+    data class Message(val text: String) : ViewerEvent
+    /** Saved into the original file. */
+    data object Saved : ViewerEvent
+    /** The original can't be written; ask where to save a copy. */
+    data object NeedCopy : ViewerEvent
+    /** A copy was saved; open it. */
+    data class OpenCopy(val uri: Uri) : ViewerEvent
+}
+
 data class ReaderPrefs(
     val scrollMode: ScrollMode = ScrollMode.VERTICAL,
     val colorMode: ColorMode = ColorMode.NORMAL,
@@ -80,7 +114,7 @@ class ViewerViewModel(
     private val uri: Uri,
     private val appContext: Context,
     private val container: AppContainer,
-) : ViewModel() {
+) : ViewModel(), EditorActions {
 
     private val key = uri.toString()
 
@@ -113,6 +147,30 @@ class ViewerViewModel(
     val search: StateFlow<SearchState> = _search.asStateFlow()
 
     private val currentPage = MutableStateFlow<Int?>(null)
+    private var indexJob: Job? = null
+
+    // ---- Editing state (Phase 3)
+    private val editor = AnnotationEditor()
+    val editorState: StateFlow<EditorState> = editor.state
+
+    /** False until the file's existing annotations have been read. */
+    private val _annotationsReady = MutableStateFlow(false)
+    val annotationsReady: StateFlow<Boolean> = _annotationsReady.asStateFlow()
+
+    private val _tools = MutableStateFlow(ToolSettings())
+    val tools: StateFlow<ToolSettings> = _tools.asStateFlow()
+
+    private val _selectedId = MutableStateFlow<Long?>(null)
+    val selectedId: StateFlow<Long?> = _selectedId.asStateFlow()
+
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
+    private val _events = Channel<ViewerEvent>(Channel.BUFFERED)
+    val events: Flow<ViewerEvent> = _events.receiveAsFlow()
+
+    private val ids = AtomicLong(System.currentTimeMillis())
+    private val imageDir = File(appContext.filesDir, "annotation-images")
 
     init {
         load()
@@ -122,7 +180,7 @@ class ViewerViewModel(
 
     // ---- Opening -----------------------------------------------------------------
 
-    private fun load() = viewModelScope.launch {
+    private fun load(resumePage: Int? = null) = viewModelScope.launch {
         _state.value = try {
             val info = container.documents.describe(uri)
             val doc = PdfFile.open(appContext, uri).also { document = it }
@@ -135,7 +193,7 @@ class ViewerViewModel(
                 ViewerUiState.Ready(
                     document = doc,
                     title = info.name.removeSuffix(".pdf").removeSuffix(".PDF"),
-                    initialPage = record.lastPage,
+                    initialPage = resumePage?.coerceIn(0, doc.pageCount - 1) ?: record.lastPage,
                     placeholderAspect = doc.pageSize(0)?.aspect ?: 1.414f,
                 )
             }
@@ -154,7 +212,12 @@ class ViewerViewModel(
         }
     }
 
-    private fun startIndexing(total: Int) = viewModelScope.launch {
+    private fun startIndexing(total: Int) {
+        indexJob?.cancel()
+        indexJob = viewModelScope.launch { index(total) }
+    }
+
+    private suspend fun index(total: Int) {
         _index.value = IndexProgress(total = total)
         var done = 0
         var characters = 0L
@@ -164,6 +227,16 @@ class ViewerViewModel(
                 context = appContext,
                 uri = uri,
                 onOutline = { _outline.value = it },
+                onAnnotations = { pdf ->
+                    val found = runCatching { AnnotationReader.read(pdf, imageDir) { ids.incrementAndGet() } }
+                        .getOrDefault(emptyList())
+                    viewModelScope.launch {
+                        // Never overwrite edits the user has already made.
+                        if (!editor.state.value.dirty) editor.load(found)
+                        dropStaleSelection()
+                        _annotationsReady.value = true
+                    }
+                },
             ) { pageIndex, text ->
                 if (pageIndex in 0 until total) texts?.set(pageIndex, text)
                 done++
@@ -180,6 +253,7 @@ class ViewerViewModel(
         } catch (e: Throwable) {
             // Reading still works; only search/selection/contents are unavailable.
             if (_outline.value == null) _outline.value = emptyList()
+            _annotationsReady.value = true
             _index.value = _index.value.copy(finished = true, failed = true)
         }
     }
@@ -268,6 +342,180 @@ class ViewerViewModel(
     fun setColorMode(mode: ColorMode) = viewModelScope.launch { container.settings.setColorMode(mode) }
 
     fun setKeepScreenOn(on: Boolean) = viewModelScope.launch { container.settings.setKeepScreenOn(on) }
+
+    // ---- Editing (Phase 3) --------------------------------------------------------
+
+    override fun newId(): Long = ids.incrementAndGet()
+
+    override fun create(a: Annotation) {
+        editor.add(a)
+        if (a is TextNote || a is ImageStamp) {
+            _tools.value = _tools.value.copy(tool = Tool.SELECT)
+            _selectedId.value = a.id
+        }
+    }
+
+    override fun select(id: Long?) { _selectedId.value = id }
+
+    override fun gestureUpdate(a: Annotation) = editor.updateDuringGesture(a)
+
+    override fun gestureRemove(id: Long) {
+        if (_selectedId.value == id) _selectedId.value = null
+        editor.removeDuringGesture(id)
+    }
+
+    override fun gestureEnd() = editor.endGesture()
+
+    fun setTool(tool: Tool) {
+        _tools.value = _tools.value.copy(tool = tool)
+        if (tool != Tool.SELECT) _selectedId.value = null
+    }
+
+    fun setToolColor(color: Int) { _tools.value = _tools.value.withColor(color) }
+    fun setStrokeWidth(w: Float) { _tools.value = _tools.value.copy(strokeWidth = w) }
+    fun setTextSize(s: Float) { _tools.value = _tools.value.copy(textSize = s) }
+
+    fun undo() { editor.undo(); dropStaleSelection() }
+    fun redo() { editor.redo(); dropStaleSelection() }
+
+    private fun dropStaleSelection() {
+        if (editor.find(_selectedId.value) == null) _selectedId.value = null
+    }
+
+    fun deleteSelected() {
+        val id = _selectedId.value ?: return
+        _selectedId.value = null
+        editor.remove(id)
+    }
+
+    fun recolorSelected(color: Int) {
+        val a = editor.find(_selectedId.value) ?: return
+        editor.update(a.withColor(color))
+        _tools.value = _tools.value.let { t ->
+            // Remember the colour for next time too.
+            when (a) {
+                is TextNote -> t.copy(textColor = color)
+                is com.folio.pdf.edit.Ink -> t.copy(penColor = color)
+                is com.folio.pdf.edit.Shape -> t.copy(shapeColor = color)
+                else -> t
+            }
+        }
+    }
+
+    fun addText(page: Int, at: NPoint, text: String) {
+        if (text.isBlank()) return
+        val size = _tools.value.textSize
+        val draft = TextNote(newId(), page, at, text, _tools.value.textColor, size)
+        // Keep it on the page.
+        val (w, _) = draft.size(pageAspect(page))
+        val x = at.x.coerceAtMost((1f - w).coerceAtLeast(0f))
+        create(draft.copy(origin = NPoint(x, at.y.coerceIn(0f, 0.97f))))
+    }
+
+    fun updateText(id: Long, text: String) {
+        val note = editor.find(id) as? TextNote ?: return
+        if (text.isBlank()) editor.remove(id) else editor.update(note.copy(text = text))
+    }
+
+    fun addImage(page: Int, source: Uri) = viewModelScope.launch {
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                val bitmap = decodeScaled(source, 2048) ?: error("Unreadable image")
+                imageDir.mkdirs()
+                val id = newId()
+                val png = bitmap.hasAlpha()
+                val file = File(imageDir, "image-$id." + if (png) "png" else "jpg")
+                file.outputStream().use {
+                    bitmap.compress(if (png) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, 90, it)
+                }
+                Triple(id, file, bitmap.height.toFloat() / bitmap.width)
+            }
+        }
+        result.onSuccess { (id, file, imageAspect) ->
+            val aspect = pageAspect(page)
+            val w = 0.5f
+            val h = (w * imageAspect / aspect).coerceAtMost(0.8f)
+            val width = h * aspect / imageAspect
+            val left = (1f - width) / 2
+            val top = (1f - h) / 2
+            create(ImageStamp(id, page, NRect(left, top, left + width, top + h), file.absolutePath, imageAspect))
+        }.onFailure {
+            _events.send(ViewerEvent.Message("Couldn't add that image"))
+        }
+    }
+
+    private fun decodeScaled(source: Uri, maxSide: Int): Bitmap? {
+        val resolver = appContext.contentResolver
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, source)) { decoder, info, _ ->
+                val largest = maxOf(info.size.width, info.size.height)
+                if (largest > maxSide) {
+                    val scale = maxSide.toFloat() / largest
+                    decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
+                }
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+        } else {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(source)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            var sample = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxSide) sample *= 2
+            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+            resolver.openInputStream(source)?.use { BitmapFactory.decodeStream(it, null, opts) }
+        }
+    }
+
+    private fun pageAspect(page: Int): Float {
+        val ready = _state.value as? ViewerUiState.Ready ?: return 1.414f
+        return ready.document.cachedAspect(page) ?: ready.placeholderAspect
+    }
+
+    /**
+     * Saves the annotations into the PDF.
+     * [copyTarget] null → overwrite the original; otherwise write a new file there.
+     */
+    fun save(copyTarget: Uri? = null) = viewModelScope.launch {
+        if (_saving.value) return@launch
+        _saving.value = true
+        val annotations = editor.state.value.annotations
+        val temp = File(appContext.cacheDir, "folio-save-${System.nanoTime()}.pdf")
+        try {
+            withContext(Dispatchers.IO) { AnnotationWriter.write(appContext, uri, annotations, temp) }
+            if (copyTarget != null) {
+                container.documents.overwrite(copyTarget, temp)
+                container.documents.persistReadPermission(copyTarget)
+                editor.markSaved()
+                _events.send(ViewerEvent.OpenCopy(copyTarget))
+            } else {
+                val page = currentPage.value
+                // The renderer has the file open; release it before replacing the bytes.
+                indexJob?.cancel()
+                document?.close()
+                document = null
+                try {
+                    container.documents.overwrite(uri, temp)
+                } catch (e: Exception) {
+                    load(page)
+                    throw e
+                }
+                editor.markSaved()
+                Thumbnails.invalidate(key)
+                load(page)
+                _events.send(ViewerEvent.Saved)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: SecurityException) {
+            _events.send(ViewerEvent.NeedCopy)
+        } catch (e: FileNotFoundException) {
+            _events.send(ViewerEvent.NeedCopy)
+        } catch (e: Exception) {
+            _events.send(ViewerEvent.Message("Couldn't save: ${e.message ?: "unknown error"}"))
+        } finally {
+            temp.delete()
+            _saving.value = false
+        }
+    }
 
     override fun onCleared() {
         document?.close()

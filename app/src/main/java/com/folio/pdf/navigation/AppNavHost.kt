@@ -77,7 +77,16 @@ fun AppNavHost(
             if (raw.isEmpty()) {
                 LaunchedEffect(Unit) { navController.popBackStack() }
             } else {
-                ViewerScreen(uri = Uri.parse(raw), onBack = { navController.popBackStack() })
+                ViewerScreen(
+                    uri = Uri.parse(raw),
+                    onBack = { navController.popBackStack() },
+                    // After "Save as copy", swap this reader for the new file.
+                    onOpenDocument = { copy ->
+                        navController.navigate(Routes.viewer(copy)) {
+                            popUpTo(Routes.VIEWER) { inclusive = true }
+                        }
+                    },
+                )
             }
         }
     }
