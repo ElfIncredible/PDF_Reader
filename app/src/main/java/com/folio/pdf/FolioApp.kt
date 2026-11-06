@@ -18,6 +18,32 @@ class FolioApp : Application() {
         // PdfBox needs its fonts/resources wired up once per process.
         PDFBoxResourceLoader.init(applicationContext)
         container = AppContainer(this)
+        if (BuildConfig.DEBUG) enableStrictMode()
+    }
+
+    /** Android asks apps to free memory; page images are the big item, and they're re-rendered on demand. */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            com.folio.pdf.pdf.PdfFile.trimAll()
+            com.folio.pdf.pdf.Thumbnails.trim()
+            com.folio.pdf.ui.editor.AnnotationImages.trim()
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+    }
+
+    /** Debug builds only: log files left open and network on the main thread. */
+    private fun enableStrictMode() {
+        android.os.StrictMode.setThreadPolicy(
+            android.os.StrictMode.ThreadPolicy.Builder().detectNetwork().penaltyLog().build(),
+        )
+        android.os.StrictMode.setVmPolicy(
+            android.os.StrictMode.VmPolicy.Builder().detectLeakedClosableObjects().detectActivityLeaks().penaltyLog().build(),
+        )
     }
 }
 

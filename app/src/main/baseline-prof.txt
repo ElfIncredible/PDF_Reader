@@ -1,0 +1,15 @@
+# Baseline Profile: tells Android which code to compile ahead of time, so Folio starts and
+# scrolls faster from the very first launch (installed by androidx.profileinstaller).
+# These wildcard rules cover the app's own code on the hot paths: start-up, Home, the reader.
+HSPLcom/folio/pdf/FolioApp;->**(**)**
+HSPLcom/folio/pdf/AppContainer;->**(**)**
+HSPLcom/folio/pdf/MainActivity;->**(**)**
+HSPLcom/folio/pdf/navigation/**;->**(**)**
+HSPLcom/folio/pdf/ui/home/**;->**(**)**
+HSPLcom/folio/pdf/ui/components/**;->**(**)**
+HSPLcom/folio/pdf/ui/theme/**;->**(**)**
+HSPLcom/folio/pdf/ui/viewer/**;->**(**)**
+HSPLcom/folio/pdf/pdf/PdfFile**;->**(**)**
+HSPLcom/folio/pdf/pdf/PageText;->**(**)**
+HSPLcom/folio/pdf/data/**;->**(**)**
+Lcom/folio/pdf/**;

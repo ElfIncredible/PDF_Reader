@@ -25,6 +25,11 @@ data class AppSettings(
     val keepScreenOn: Boolean = false,
     val scrollMode: ScrollMode = ScrollMode.VERTICAL,
     val colorMode: ColorMode = ColorMode.NORMAL,
+    /** Folio server address, e.g. http://192.168.1.20:8000 (blank = not set up). */
+    val serverUrl: String = "",
+    val serverToken: String = "",
+    /** The user agreed that document text/files may be sent to their server. */
+    val serverConsent: Boolean = false,
     /** Folder the user granted for the Browse tab (a SAF tree URI). */
     val libraryTreeUri: String? = null,
 )
@@ -40,6 +45,9 @@ class SettingsRepository(private val context: Context) {
         val LIBRARY_TREE = stringPreferencesKey("library_tree_uri")
         val SCROLL_MODE = stringPreferencesKey("scroll_mode")
         val COLOR_MODE = stringPreferencesKey("color_mode")
+        val SERVER_URL = stringPreferencesKey("server_url")
+        val SERVER_TOKEN = stringPreferencesKey("server_token")
+        val SERVER_CONSENT = booleanPreferencesKey("server_consent")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data
@@ -52,6 +60,9 @@ class SettingsRepository(private val context: Context) {
                 dynamicColor = p[Keys.DYNAMIC_COLOR] ?: true,
                 keepScreenOn = p[Keys.KEEP_SCREEN_ON] ?: false,
                 libraryTreeUri = p[Keys.LIBRARY_TREE],
+                serverUrl = p[Keys.SERVER_URL].orEmpty(),
+                serverToken = p[Keys.SERVER_TOKEN].orEmpty(),
+                serverConsent = p[Keys.SERVER_CONSENT] ?: false,
                 scrollMode = p[Keys.SCROLL_MODE]
                     ?.let { runCatching { ScrollMode.valueOf(it) }.getOrNull() }
                     ?: ScrollMode.VERTICAL,
@@ -79,6 +90,17 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setColorMode(mode: ColorMode) {
         context.dataStore.edit { it[Keys.COLOR_MODE] = mode.name }
+    }
+
+    suspend fun setServer(url: String, token: String) {
+        context.dataStore.edit {
+            it[Keys.SERVER_URL] = url.trim().trimEnd('/')
+            it[Keys.SERVER_TOKEN] = token.trim()
+        }
+    }
+
+    suspend fun setServerConsent(allowed: Boolean) {
+        context.dataStore.edit { it[Keys.SERVER_CONSENT] = allowed }
     }
 
     suspend fun setLibraryTreeUri(uri: String?) {

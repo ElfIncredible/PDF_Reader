@@ -11,6 +11,8 @@ object Thumbnails {
 
     fun peek(uri: String): Bitmap? = cache.get(uri)
 
+    fun trim() = cache.evictAll()
+
     fun invalidate(uri: String) {
         cache.remove(uri)
     }

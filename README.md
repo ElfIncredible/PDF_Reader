@@ -1,7 +1,7 @@
 # Folio PDF — Android PDF reader & editor
 
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
-Current milestone: **Phase 6: Advanced features** (built on Phases 1–5).
+**Version 1.0: all seven phases are complete.** Android app (Kotlin + Compose) plus an optional Python server (`folio-server/`) for AI and conversions.
 
 ## Run it
 
@@ -12,7 +12,45 @@ Current milestone: **Phase 6: Advanced features** (built on Phases 1–5).
 
 Command line: `./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
 
-## What Phase 6 adds
+## What Phase 7 adds
+
+### The Folio server (`folio-server/`): Python, FastAPI, Docker
+Your Python part: a small service you run on your own computer (or a cheap VPS). See `folio-server/README.md`.
+- **AI:** summaries and question answering with **page citations**. Retrieval is BM25 over the document's pages,
+  with no vector database. Long documents are summarised part by part, then combined. Works with a **local, free
+  model via Ollama** (default, private), any OpenAI-compatible API, or Anthropic, set in `.env`.
+- **Tables** (pdfplumber → JSON / Excel), **Office → PDF** (LibreOffice), **PDF/A conversion** (Ghostscript +
+  sRGB profile, validated with veraPDF if installed).
+- Token auth, upload limits, nothing stored. Tests: `pytest` (11 pass here, including a real LibreOffice
+  conversion and table extraction; the API tests run once FastAPI is installed).
+
+### In the app
+| Feature | Where |
+|---|---|
+| **AI assistant** | Home → **AI**, or ⋮ → **AI assistant** in the reader. Tabs: **Summary** (short / medium / long, key points with pages, copy/share), **Ask** (chat; answers only from the document, with cited page snippets; suggested questions), **Tables** (preview, save each as CSV or all as Excel), **Translate** |
+| **Translate** | On the phone with ML Kit, no server needed: any of ~59 languages (Swahili included), a page or the first 30 pages, Wi-Fi-only model download, save the translation as a PDF |
+| **Word / Excel / PowerPoint → PDF** | All tools → *Word, Excel, PowerPoint → PDF* (via the server) |
+| **PDF/A conversion** | Document info & PDF/A → **Convert (server)**, reports veraPDF validation |
+| **Server settings** | Settings → **Folio server**: address, token, **Test connection** (shows which features the server has), and an explicit **Allow sending documents** switch. The AI tabs explain exactly what is sent before you allow it, and warn about plain-http addresses outside your home network |
+| **Performance** | Memory trimming, page prefetch, Baseline Profile, LeakCanary + StrictMode in debug. See **PERFORMANCE.md** |
+
+**Privacy model:** everything in Phases 1–6 runs on the phone. Only the AI tabs (except Translate), Office → PDF
+and PDF/A conversion use the network, only to *your* server, and only after you switch it on. With Ollama, the
+text never leaves your computer.
+
+### Phase 7 test checklist
+- [ ] Start the server (`docker compose up -d`, then pull a model) → Settings → Folio server → **Test connection** shows ✅ with AI, Office and PDF/A
+- [ ] Wrong token → a clear "rejected the access token" message
+- [ ] Open a contract → ⋮ → AI assistant → **Summary** → key points cite pages; check one against the page
+- [ ] **Ask** "When is payment due?" → an answer with a page snippet; ask something not in the document → "I couldn't find that"
+- [ ] **Tables** on an invoice or bank statement → preview → *Save all as Excel* → opens in Excel / Sheets with numbers as numbers
+- [ ] **Translate** page 1 into Swahili (first time downloads the language pack) → *Save as PDF*
+- [ ] Airplane mode → Translate still works (pack downloaded); Summary says it can't reach the server
+- [ ] **Word → PDF** with a .docx → the PDF matches the document
+- [ ] Document info → **Convert (server)** → PDF/A copy; *Check readiness* on it shows mostly ✅
+- [ ] Debug build: use the app for 10 minutes → no LeakCanary notification
+
+## What Phase 6 added
 
 All new tools are under **All tools**, and the reader's **⋮** menu has Redact, Add a password and Document info.
 
@@ -246,7 +284,7 @@ ui/ (Compose screens + ViewModels)  →  data/ (repositories)  →  Room · Data
 | **4 – Toolkit** ✅ | Merge, split, reorder, rotate, extract/delete pages, compress, images→PDF, PDF→images | PdfBox-Android for page operations. Compress by re-encoding embedded images. `android.graphics.pdf.PdfDocument` for images→PDF. Long jobs run under **WorkManager** with notifications. Office→PDF needs a server: a **Python FastAPI + LibreOffice** service. |
 | **5 – Sign & scan** ✅ | Draw/type/photo signature, fill forms (AcroForm), digital signatures (PAdES), camera scanner, OCR | Signature pad → transparent PNG stamp. PdfBox AcroForm for forms. PdfBox + **BouncyCastle** for certificate signatures. **ML Kit Document Scanner** (edge detection, crop, filters). **ML Kit Text Recognition v2** (on-device) for OCR, written as an invisible text layer so scans become searchable. |
 | **6 – Advanced** ✅ | Password protect/unlock, true redaction, batch jobs, compare two PDFs, metadata editor, PDF/A | PdfBox AES-256 encryption. Redaction rasterises affected pages so hidden text is really gone. A WorkManager batch queue. Comparison uses a per-page text diff plus an image diff overlay. Metadata via PDDocumentInformation/XMP. Full PDF/A validation is server-side (Python + veraPDF/Ghostscript). |
-| **7 – AI & speed** | Summarise, ask questions, table extraction, translation, performance | A **Python FastAPI backend**: text → chunk → embed → LLM for summaries and Q&A with page citations; tables via `pdfplumber`/`camelot` → CSV/Excel. On-device translation with ML Kit. Performance work: bitmap pooling, tile cache, prefetching nearby pages, Baseline Profiles, LeakCanary, large-file tests (1,000+ pages). |
+| **7 – AI & speed** ✅ | Summarise, ask questions, table extraction, translation, performance | A **Python FastAPI backend**: text → chunk → embed → LLM for summaries and Q&A with page citations; tables via `pdfplumber`/`camelot` → CSV/Excel. On-device translation with ML Kit. Performance work: bitmap pooling, tile cache, prefetching nearby pages, Baseline Profiles, LeakCanary, large-file tests (1,000+ pages). |
 
 ### Where your Python skills fit
 The phone app is Kotlin for native speed, the camera and the system file picker. Kotlin
@@ -254,7 +292,8 @@ syntax is close to Python's (`val`/`var`, lambdas, data classes, no semicolons).
 A small **FastAPI** service (Phases 4, 6 and 7) handles what phones do poorly: Office conversion,
 PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working offline without it.
 
-## Next steps (Phase 7 kick-off: AI and optimisation)
-1. **The Folio server (Python, FastAPI, Docker):** `/summarize`, `/ask` (questions with page citations), `/tables` (pdfplumber/camelot → CSV/Excel), `/convert` (LibreOffice: Word/Excel/PowerPoint → PDF), `/pdfa` (Ghostscript + veraPDF). Your Python skills fit here.
-2. **In the app:** *Summarise*, *Ask this PDF*, *Extract tables* and *Translate* (on-device ML Kit translation), with a server address in Settings and a clear privacy switch.
-3. **Optimisation:** a Baseline Profile, bitmap reuse, tiled rendering for deep zoom, prefetching nearby pages, LeakCanary in debug, and tests on 1,000+ page files.
+## Where to go next (after 1.0)
+1. **Release:** app icon and screenshots, a privacy policy (simple, since nothing leaves the phone unless the server is switched on), signed App Bundle, Play Console internal testing, then production.
+2. **Automated tests:** Compose UI tests for the main flows (open → search → edit → save), plus a GitHub Actions workflow that builds the app and runs the server's `pytest`.
+3. **Nice extras:** text-to-speech read-aloud, cloud folders (Google Drive picker), Android widgets for recent files, and tablet two-pane layouts.
+4. **On-device AI:** on phones that support Gemini Nano (ML Kit GenAI APIs), summaries could work offline without the server.

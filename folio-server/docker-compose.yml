@@ -1,0 +1,27 @@
+# Folio server + a local, private AI model (Ollama).
+#   1. cp .env.example .env   (and set FOLIO_TOKEN)
+#   2. docker compose up -d
+#   3. docker compose exec ollama ollama pull llama3.1:8b
+services:
+  folio:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    # With an NVIDIA GPU, uncomment for much faster answers:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+volumes:
+  ollama:

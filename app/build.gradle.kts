@@ -13,8 +13,8 @@ android {
         applicationId = "com.folio.pdf"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.6.0-phase6"
+        versionCode = 7
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -85,4 +85,10 @@ dependencies {
     implementation(libs.mlkit.text.recognition)
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)
+
+    // Phase 7: on-device translation, faster start-up, leak detection (debug builds only)
+    implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
+    implementation(libs.androidx.profileinstaller)
+    debugImplementation(libs.leakcanary)
 }

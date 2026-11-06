@@ -19,6 +19,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,7 +62,7 @@ class ToolViewModel(
     private var running: Job? = null
 
     private val takesImages = kind == ToolKind.IMAGES_TO_PDF || kind == ToolKind.SCAN
-    private val takesPdfs = !takesImages && kind != ToolKind.TEXT_TO_PDF
+    private val takesPdfs = !takesImages && kind != ToolKind.TEXT_TO_PDF && kind != ToolKind.CONVERT_OFFICE
 
     init {
         initial?.let { add(listOf(it)) }
@@ -199,6 +200,17 @@ class ToolViewModel(
         "Saved a copy without a password"
     }
 
+    /** Word / Excel / PowerPoint → PDF on the Folio server (LibreOffice). */
+    fun convertOffice(output: Uri) = runToFile(output, "Converting on your server…") { temp, _ ->
+        val input = first ?: throw ToolException("Choose a document first")
+        val server = com.folio.pdf.net.FolioServer.from(context, container.settings.settings.first())
+            ?: throw ToolException("Set up your Folio server in Settings first")
+        val mime = context.contentResolver.getType(input.info.uri) ?: "application/octet-stream"
+        val bytes = server.convertToPdf(input.info.uri, input.info.name, mime)
+        temp.writeBytes(bytes)
+        "Converted · ${formatFileSize(temp.length())}"
+    }
+
     fun textToPdf(fontSize: Float, output: Uri) = runToFile(output, "Converting…") { temp, _ ->
         val input = first ?: throw ToolException("Choose a text file first")
         PdfTools.textToPdf(context, input.info.uri, fontSize, temp)
@@ -241,6 +253,7 @@ class ToolViewModel(
         is OutOfMemoryError -> "This file is too large for your phone's memory."
         is SecurityException -> "Folio isn't allowed to read or write that file. Try choosing it again."
         is java.io.FileNotFoundException -> "The file couldn't be found. It may have been moved or deleted."
+        is com.folio.pdf.net.ServerException -> e.message ?: "Server problem"
         else -> "Something went wrong: ${e.message ?: e.javaClass.simpleName}"
     }
 }

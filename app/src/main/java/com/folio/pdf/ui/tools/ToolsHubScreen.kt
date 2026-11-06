@@ -34,8 +34,7 @@ import androidx.compose.ui.unit.dp
 private data class Upcoming(val title: String, val note: String, val icon: ImageVector)
 
 private val upcoming = listOf(
-    Upcoming("Summarise, ask questions, extract tables, translate", "Phase 7 · AI", Icons.Outlined.Draw),
-    Upcoming("Full PDF/A conversion and validation", "Phase 7 · needs the Folio server", Icons.Outlined.Lock),
+    Upcoming("Your ideas: everything planned is built. See the README for what to add next", "Folio 1.0", Icons.Outlined.Draw),
     Upcoming("Word, Excel, PowerPoint → PDF", "Phase 7 · needs the Folio server", Icons.Outlined.CloudUpload),
 )
 

@@ -37,6 +37,10 @@ class PdfFile private constructor(
 
     val pageCount: Int = renderer.pageCount
 
+    init {
+        synchronized(open) { open.add(this) }
+    }
+
     private val mutex = Mutex()
     private val sizes = arrayOfNulls<PageSize>(pageCount)
     @Volatile private var closeRequested = false
@@ -99,9 +103,13 @@ class PdfFile private constructor(
         }
     }
 
+    /** Drops cached page images (called when Android is short of memory). */
+    fun trimCache() = bitmaps.evictAll()
+
     private fun release() {
         if (released) return
         released = true
+        synchronized(open) { open.remove(this) }
         runCatching { renderer.close() }
         runCatching { descriptor.close() }
         bitmaps.evictAll()
@@ -111,6 +119,14 @@ class PdfFile private constructor(
 
     companion object {
         private const val MAX_PIXELS = 12_000_000L // ~48 MB per page bitmap at worst
+
+        /** Every open document, so their caches can be emptied under memory pressure. */
+        private val open: MutableSet<PdfFile> = java.util.Collections.newSetFromMap(java.util.WeakHashMap())
+
+        fun trimAll() {
+            val snapshot = synchronized(open) { open.toList() }
+            snapshot.forEach { it.trimCache() }
+        }
 
         private fun cacheSizeKb(): Int = (Runtime.getRuntime().maxMemory() / 1024 / 8).toInt()
 
