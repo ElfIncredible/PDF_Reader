@@ -11,6 +11,10 @@ object Thumbnails {
 
     fun peek(uri: String): Bitmap? = cache.get(uri)
 
+    fun invalidate(uri: String) {
+        cache.remove(uri)
+    }
+
     suspend fun load(context: Context, uri: String, widthPx: Int = 160): Bitmap? {
         cache.get(uri)?.let { return it }
         return runCatching {

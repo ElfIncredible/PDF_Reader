@@ -25,11 +25,25 @@ class DocumentRepository(private val context: Context) {
 
     private val resolver = context.contentResolver
 
-    /** Keep access to a picked file across app restarts (needed for Recents). */
+    /**
+     * Keep access to a picked file across app restarts (needed for Recents).
+     * Asks for write access too when the provider granted it, so edits can be saved
+     * back into the original file; falls back to read-only.
+     */
     fun persistReadPermission(uri: Uri) {
-        runCatching {
-            resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val readWrite = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        val ok = runCatching { resolver.takePersistableUriPermission(uri, readWrite) }.isSuccess
+        if (!ok) {
+            runCatching { resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         }
+    }
+
+    /** Overwrites [target] with the bytes of [source]. Throws if Folio may not write there. */
+    suspend fun overwrite(target: Uri, source: java.io.File) = withContext(Dispatchers.IO) {
+        val out = runCatching { resolver.openOutputStream(target, "wt") }.getOrNull()
+            ?: resolver.openOutputStream(target, "w")
+            ?: throw java.io.FileNotFoundException("Cannot write $target")
+        out.use { o -> source.inputStream().use { it.copyTo(o) } }
     }
 
     fun persistTreePermission(uri: Uri) {

@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,10 +59,12 @@ import com.folio.pdf.FolioApp
 import com.folio.pdf.data.ColorMode
 import com.folio.pdf.data.ScrollMode
 import com.folio.pdf.ui.components.EmptyState
+import com.folio.pdf.ui.editor.EditorContent
+import com.folio.pdf.ui.editor.UnsavedChangesDialog
 import kotlinx.coroutines.launch
 
 @Composable
-fun ViewerScreen(uri: Uri, onBack: () -> Unit) {
+fun ViewerScreen(uri: Uri, onBack: () -> Unit, onOpenDocument: (Uri) -> Unit) {
     val app = LocalContext.current.applicationContext as FolioApp
     val vm: ViewerViewModel = viewModel(
         key = uri.toString(),
@@ -87,7 +91,7 @@ fun ViewerScreen(uri: Uri, onBack: () -> Unit) {
                 modifier = Modifier.align(Alignment.Center),
             ) { Button(onClick = onBack) { Text("Go back") } }
         }
-        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, onBack)
+        is ViewerUiState.Ready -> PdfReader(s, vm, uri, prefs, onBack, onOpenDocument)
     }
 }
 
@@ -113,6 +117,7 @@ private fun PdfReader(
     uri: Uri,
     prefs: ReaderPrefs,
     onBack: () -> Unit,
+    onOpenDocument: (Uri) -> Unit,
 ) {
     val doc = state.document
     val context = LocalContext.current
@@ -125,6 +130,8 @@ private fun PdfReader(
     val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
     val isFavourite by vm.isFavorite.collectAsStateWithLifecycle()
     val outline by vm.outline.collectAsStateWithLifecycle()
+    val editor by vm.editorState.collectAsStateWithLifecycle()
+    val annotationsReady by vm.annotationsReady.collectAsStateWithLifecycle()
 
     var page by rememberSaveable { mutableIntStateOf(state.initialPage) }
     var navigator by remember { mutableStateOf<PageNavigator?>(null) }
@@ -138,6 +145,14 @@ private fun PdfReader(
     var showNav by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showResults by remember { mutableStateOf(false) }
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var confirmExit by remember { mutableStateOf(false) }
+    var exitAfterSave by remember { mutableStateOf(false) }
+
+    val saveCopyLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf"),
+    ) { target -> if (target != null) vm.save(target) else exitAfterSave = false }
+    fun saveCopy() = saveCopyLauncher.launch("${state.title} (edited).pdf")
 
     fun jumpTo(target: Int, yFraction: Float = 0f) {
         scope.launch { navigator?.goTo(target.coerceIn(0, doc.pageCount - 1), yFraction) }
@@ -156,7 +171,25 @@ private fun PdfReader(
         vm.setQuery("")
     }
 
-    ImmersiveEffect(immersive = !chromeVisible && selection == null && !searching)
+    ImmersiveEffect(immersive = !chromeVisible && selection == null && !searching && !editing)
+
+    fun requestExit() {
+        if (editor.dirty) confirmExit = true else onBack()
+    }
+
+    LaunchedEffect(vm) {
+        vm.events.collect { event ->
+            when (event) {
+                is ViewerEvent.Message -> { exitAfterSave = false; toast(event.text) }
+                ViewerEvent.Saved -> if (exitAfterSave) onBack() else toast("Saved")
+                ViewerEvent.NeedCopy -> {
+                    toast("Folio can't change the original file, so choose where to save a copy")
+                    saveCopy()
+                }
+                is ViewerEvent.OpenCopy -> onOpenDocument(event.uri)
+            }
+        }
+    }
 
     // Follow the current search hit.
     val activeHit = search.currentHit
@@ -174,6 +207,7 @@ private fun PdfReader(
         textVersion = index.done,
         pageText = vm::pageText,
         hitsByPage = hitsByPage,
+        annotationsByPage = remember(editor.annotations) { editor.annotations.groupBy { it.page } },
         activeHit = activeHit,
         selection = selection,
         onSelectionChange = { selection = it },
@@ -195,8 +229,32 @@ private fun PdfReader(
         vm.onPageChanged(it)
     }
 
-    BackHandler(enabled = selection != null || searching) {
-        if (selection != null) selection = null else closeSearch()
+    BackHandler(enabled = !editing && (selection != null || searching || editor.dirty)) {
+        when {
+            selection != null -> selection = null
+            searching -> closeSearch()
+            else -> requestExit()
+        }
+    }
+
+    if (editing) {
+        EditorContent(
+            vm = vm,
+            doc = doc,
+            colorMode = prefs.colorMode,
+            startPage = page,
+            onDone = { p ->
+                editing = false
+                vm.select(null)
+                page = p
+                jumpTo(p)
+                if (editor.dirty) toast("Changes not saved yet. Use Save in the editor, or you'll be asked when you leave")
+            },
+            onSave = { vm.save() },
+            onSaveCopy = { saveCopy() },
+        )
+        if (confirmExit) ExitDialog(onSave = { confirmExit = false; exitAfterSave = true; vm.save() }, onDiscard = { confirmExit = false; onBack() }, onCancel = { confirmExit = false })
+        return
     }
 
     Box(
@@ -278,8 +336,17 @@ private fun PdfReader(
                         title = state.title,
                         bookmarked = bookmarks.any { it.page == page },
                         favourite = isFavourite,
-                        onBack = onBack,
+                        onBack = ::requestExit,
                         onSearch = { searching = true },
+                        onEdit = {
+                            if (annotationsReady) {
+                                selection = null
+                                editing = true
+                            } else {
+                                toast("Getting the editor ready, try again in a moment")
+                            }
+                        },
+                        unsaved = editor.dirty,
                         onToggleBookmark = {
                             val wasBookmarked = bookmarks.any { it.page == page }
                             vm.toggleBookmark(page)
@@ -364,6 +431,13 @@ private fun PdfReader(
             onDismiss = { showModes = false },
         )
     }
+    if (confirmExit) {
+        ExitDialog(
+            onSave = { confirmExit = false; exitAfterSave = true; vm.save() },
+            onDiscard = { confirmExit = false; onBack() },
+            onCancel = { confirmExit = false },
+        )
+    }
     if (showResults && search.hits.isNotEmpty()) {
         SearchResultsSheet(
             state = search,
@@ -375,6 +449,10 @@ private fun PdfReader(
         )
     }
 }
+
+@Composable
+private fun ExitDialog(onSave: () -> Unit, onDiscard: () -> Unit, onCancel: () -> Unit) =
+    UnsavedChangesDialog(onSave = onSave, onDiscard = onDiscard, onCancel = onCancel)
 
 private fun sharePdf(context: Context, uri: Uri, title: String) {
     val send = Intent(Intent.ACTION_SEND).apply {

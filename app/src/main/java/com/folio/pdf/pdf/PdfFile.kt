@@ -48,6 +48,9 @@ class PdfFile private constructor(
 
     fun cachedPage(index: Int, widthPx: Int): Bitmap? = bitmaps.get(key(index, widthPx))
 
+    /** height / width if the page has been measured already. */
+    fun cachedAspect(index: Int): Float? = sizes.getOrNull(index)?.aspect
+
     suspend fun pageSize(index: Int): PageSize? {
         sizes.getOrNull(index)?.let { return it }
         return withRenderer {

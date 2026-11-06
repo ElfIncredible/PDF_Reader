@@ -20,8 +20,8 @@ data class OutlineEntry(val title: String, val page: Int, val depth: Int)
 
 /**
  * Reads the document's structure with PdfBox in a single background pass:
- * the outline first (fast), then the text of every page, reported page by page
- * so search works before the whole file has been read.
+ * the outline first (fast), then existing annotations, then the text of every page,
+ * reported page by page so search works before the whole file has been read.
  */
 object PdfTextExtractor {
 
@@ -29,6 +29,7 @@ object PdfTextExtractor {
         context: Context,
         uri: Uri,
         onOutline: (List<OutlineEntry>) -> Unit,
+        onAnnotations: (PDDocument) -> Unit = {},
         onPage: (pageIndex: Int, text: PageText) -> Unit,
     ) = withContext(Dispatchers.Default) {
         val document = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -38,6 +39,8 @@ object PdfTextExtractor {
 
         document.use { doc ->
             onOutline(readOutline(doc))
+            // Existing annotations next, so editing is ready long before all text is read.
+            onAnnotations(doc)
             val collector = PageCollector(coroutineContext, onPage)
             collector.setSortByPosition(true)
             collector.writeText(doc, DiscardWriter)

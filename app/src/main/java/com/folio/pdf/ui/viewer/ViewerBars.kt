@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -39,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -86,6 +88,8 @@ fun ReaderTopBar(
     favourite: Boolean,
     onBack: () -> Unit,
     onSearch: () -> Unit,
+    onEdit: () -> Unit,
+    unsaved: Boolean,
     onToggleBookmark: () -> Unit,
     onContents: () -> Unit,
     onReadingMode: () -> Unit,
@@ -101,6 +105,13 @@ fun ReaderTopBar(
         },
         actions = {
             IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, "Search") }
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    if (unsaved) "Edit (unsaved changes)" else "Edit",
+                    tint = if (unsaved) MaterialTheme.colorScheme.tertiary else LocalContentColor.current,
+                )
+            }
             IconButton(onClick = onToggleBookmark) {
                 if (bookmarked) {
                     Icon(Icons.Filled.Bookmark, "Remove bookmark", tint = MaterialTheme.colorScheme.primary)
