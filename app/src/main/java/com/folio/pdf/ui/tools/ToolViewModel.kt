@@ -173,10 +173,10 @@ class ToolViewModel(
         JobState.Done("Saved ${files.size} ${format.label} images", files, mime = format.mime)
     }
 
-    fun scanToPdf(recognise: Boolean, output: Uri) =
+    fun scanToPdf(recognise: Boolean, output: Uri, blackAndWhite: Boolean = false) =
         runToFile(output, if (recognise) "Recognising text…" else "Building PDF…") { temp, progress ->
             val pages = _inputs.value
-            com.folio.pdf.pdf.OcrPdf.fromImages(context, pages.map { it.info.uri }, recognise, temp, progress)
+            com.folio.pdf.pdf.OcrPdf.fromImages(context, pages.map { it.info.uri }, recognise, temp, progress, blackAndWhite)
             "${pages.size}-page PDF" + (if (recognise) " · searchable" else "") + " · ${formatFileSize(temp.length())}"
         }
 

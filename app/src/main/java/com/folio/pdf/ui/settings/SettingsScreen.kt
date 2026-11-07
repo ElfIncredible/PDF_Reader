@@ -50,6 +50,8 @@ import com.folio.pdf.net.FolioServer
 import com.folio.pdf.FolioApp
 import com.folio.pdf.data.AppSettings
 import com.folio.pdf.data.ThemeMode
+import com.folio.pdf.util.DeviceProfile
+import com.folio.pdf.util.LiteMode
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,6 +110,42 @@ fun SettingsScreen(onBack: () -> Unit) {
                 subtitle = "Stop the screen dimming while a document is open",
                 checked = settings.keepScreenOn,
                 onChange = { scope.launch { container.settings.setKeepScreenOn(it) } },
+            )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionTitle("Performance")
+            Column(Modifier.selectableGroup()) {
+                LiteMode.entries.forEach { mode ->
+                    val (label, hint) = when (mode) {
+                        LiteMode.AUTO -> "Automatic" to "On for basic phones, off for faster ones"
+                        LiteMode.ON -> "Lite mode always on" to "Smoothest on older phones and saves battery"
+                        LiteMode.OFF -> "Off" to "Sharpest pages and fastest zoom; uses more memory"
+                    }
+                    ListItem(
+                        modifier = Modifier.selectable(
+                            selected = settings.liteMode == mode,
+                            role = Role.RadioButton,
+                            onClick = { scope.launch { container.settings.setLiteMode(mode) } },
+                        ),
+                        headlineContent = { Text(label) },
+                        supportingContent = { Text(hint) },
+                        leadingContent = { RadioButton(selected = settings.liteMode == mode, onClick = null) },
+                    )
+                }
+            }
+            val liteOn = when (settings.liteMode) {
+                LiteMode.AUTO -> DeviceProfile.isBasicPhone
+                LiteMode.ON -> true
+                LiteMode.OFF -> false
+            }
+            Text(
+                (if (DeviceProfile.isBasicPhone) "This phone counts as a basic phone. " else "This phone has plenty of memory. ") +
+                    "Lite mode is ${if (liteOn) "on" else "off"}. " +
+                    "Lite renders pages a little softer, keeps fewer pages in memory, " +
+                    "makes thumbnails one at a time and limits zoom to 3×.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))

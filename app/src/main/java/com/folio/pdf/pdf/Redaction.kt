@@ -46,7 +46,7 @@ object Redaction {
                 for ((pageIndex, pageMarks) in byPage) {
                     coroutineContext.ensureActive()
                     val size = renderer.pageSize(pageIndex) ?: continue
-                    val widthPx = (size.width * 200f / 72f).toInt().coerceIn(900, 2600)
+                    val widthPx = (size.width * 200f / 72f).toInt().coerceIn(900, com.folio.pdf.util.DeviceProfile.ocrMaxWidth)
                     // Copy: the renderer's bitmap is cached and must not be drawn on.
                     val rendered = renderer.renderPage(pageIndex, widthPx) ?: continue
                     val bitmap = rendered.copy(Bitmap.Config.ARGB_8888, true)

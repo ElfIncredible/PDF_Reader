@@ -27,6 +27,10 @@ import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Share
@@ -95,6 +99,7 @@ fun ReaderTopBar(
     onToggleBookmark: () -> Unit,
     onContents: () -> Unit,
     onReadingMode: () -> Unit,
+    onReadAloud: () -> Unit,
     onGoToPage: () -> Unit,
     onToggleFavourite: () -> Unit,
     onShare: () -> Unit,
@@ -129,6 +134,11 @@ fun ReaderTopBar(
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Read aloud") },
+                        leadingIcon = { Icon(Icons.Outlined.RecordVoiceOver, null) },
+                        onClick = { menu = false; onReadAloud() },
+                    )
                     DropdownMenuItem(
                         text = { Text("Reading mode") },
                         leadingIcon = { Icon(Icons.Outlined.AutoStories, null) },
@@ -366,6 +376,35 @@ fun GoToPageDialog(pageCount: Int, current: Int, onDismiss: () -> Unit, onGo: (I
         confirmButton = { TextButton(onClick = { page?.let(onGo) }, enabled = valid) { Text("Go") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** Play/pause, stop and speed while the document is being read aloud. */
+@Composable
+fun ReadAloudBar(
+    state: com.folio.pdf.speech.ReadAloudState,
+    onPlayPause: () -> Unit,
+    onStop: () -> Unit,
+    onRate: (Float) -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.navigationBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onPlayPause) {
+                Icon(
+                    if (state.speaking) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                    if (state.speaking) "Pause" else "Play",
+                )
+            }
+            IconButton(onClick = onStop) { Icon(Icons.Outlined.Stop, "Stop reading") }
+            Text("Reading page ${state.page + 1}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+            val rates = listOf(0.8f, 1f, 1.25f, 1.5f)
+            TextButton(onClick = { onRate(rates[(rates.indexOf(state.rate).coerceAtLeast(0) + 1) % rates.size]) }) {
+                Text("${state.rate}×")
+            }
+        }
+    }
 }
 
 /** Hides the status and navigation bars while reading full-screen. */

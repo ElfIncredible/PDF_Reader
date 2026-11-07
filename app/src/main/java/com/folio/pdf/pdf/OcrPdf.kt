@@ -29,19 +29,52 @@ import kotlin.math.min
 object OcrPdf {
 
     /** Images (e.g. from the camera scanner) → a PDF, optionally searchable. */
+    /**
+     * Greyscale + auto-contrast: stretches the 2nd–98th percentile of brightness
+     * to full range so paper turns white and ink turns dark. Smaller JPEGs, crisper OCR.
+     */
+    internal fun enhance(src: android.graphics.Bitmap): android.graphics.Bitmap {
+        val w = src.width; val h = src.height
+        val px = IntArray(w * h)
+        src.getPixels(px, 0, w, 0, 0, w, h)
+        val hist = IntArray(256)
+        for (i in px.indices) {
+            val c = px[i]
+            val y = (((c shr 16) and 0xFF) * 77 + ((c shr 8) and 0xFF) * 150 + (c and 0xFF) * 29) shr 8
+            px[i] = y
+            hist[y]++
+        }
+        val n = px.size
+        var lo = 0; var acc = 0
+        while (lo < 255 && acc + hist[lo] < n * 0.02) { acc += hist[lo]; lo++ }
+        var hi = 255; acc = 0
+        while (hi > 0 && acc + hist[hi] < n * 0.02) { acc += hist[hi]; hi-- }
+        if (hi - lo < 32) { lo = 0; hi = 255 }
+        val lut = IntArray(256) { v -> (((v - lo) * 255) / (hi - lo)).coerceIn(0, 255) }
+        for (i in px.indices) {
+            val g = lut[px[i]]
+            px[i] = (0xFF shl 24) or (g shl 16) or (g shl 8) or g
+        }
+        val out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        out.setPixels(px, 0, w, 0, 0, w, h)
+        return out
+    }
+
     suspend fun fromImages(
         context: Context,
         images: List<Uri>,
         recognise: Boolean,
         target: File,
         progress: (Float) -> Unit,
+        blackAndWhite: Boolean = false,
     ) = withContext(Dispatchers.IO) {
         PDDocument(MemoryUsageSetting.setupTempFileOnly()).use { doc ->
             val font = lazy { PdfFonts.load(doc) }
             images.forEachIndexed { i, uri ->
                 coroutineContext.ensureActive()
-                val bitmap = decodeScaledBitmap(context, uri, 2200)
+                val decoded = decodeScaledBitmap(context, uri, if (com.folio.pdf.util.DeviceProfile.lite) 1600 else 2200)
                     ?: throw ToolException("Couldn't read scanned page ${i + 1}")
+                val bitmap = if (blackAndWhite) enhance(decoded).also { if (it !== decoded) decoded.recycle() } else decoded
                 // A4 width; height follows the scan, so receipts stay long and cards stay short.
                 val pageWidth = 595f
                 val pageHeight = pageWidth * bitmap.height / bitmap.width
@@ -53,6 +86,7 @@ object OcrPdf {
                     cs.drawImage(image, 0f, 0f, pageWidth, pageHeight)
                     if (lines.isNotEmpty()) drawInvisibleText(cs, font.value, lines, pageWidth, pageHeight)
                 }
+                bitmap.recycle()
                 progress((i + 1f) / (images.size + 1))
             }
             doc.save(target)
@@ -86,7 +120,7 @@ object OcrPdf {
                     }
                     val size = renderer.pageSize(i) ?: continue
                     // ~200 dpi is a good speed/accuracy balance for OCR.
-                    val widthPx = (size.width * 200f / 72f).toInt().coerceIn(800, 2600)
+                    val widthPx = (size.width * 200f / 72f).toInt().coerceIn(800, com.folio.pdf.util.DeviceProfile.ocrMaxWidth)
                     val bitmap: Bitmap = renderer.renderPage(i, widthPx) ?: continue
                     val lines = Ocr.recognize(bitmap)
                     if (lines.isNotEmpty()) {

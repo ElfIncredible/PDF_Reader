@@ -14,7 +14,7 @@ import java.io.IOException
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /** How pages flow in the reader. */
-enum class ScrollMode { VERTICAL, PAGED }
+enum class ScrollMode { VERTICAL, PAGED, TEXT }
 
 /** Paper colour while reading. */
 enum class ColorMode { NORMAL, SEPIA, NIGHT }
@@ -30,6 +30,9 @@ data class AppSettings(
     val serverToken: String = "",
     /** The user agreed that document text/files may be sent to their server. */
     val serverConsent: Boolean = false,
+    val liteMode: com.folio.pdf.util.LiteMode = com.folio.pdf.util.LiteMode.AUTO,
+    /** Text size multiplier for the Text (reflow) reading mode. */
+    val reflowScale: Float = 1f,
     /** Folder the user granted for the Browse tab (a SAF tree URI). */
     val libraryTreeUri: String? = null,
 )
@@ -48,6 +51,8 @@ class SettingsRepository(private val context: Context) {
         val SERVER_URL = stringPreferencesKey("server_url")
         val SERVER_TOKEN = stringPreferencesKey("server_token")
         val SERVER_CONSENT = booleanPreferencesKey("server_consent")
+        val LITE_MODE = stringPreferencesKey("lite_mode")
+        val REFLOW_SCALE = androidx.datastore.preferences.core.floatPreferencesKey("reflow_scale")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data
@@ -63,6 +68,10 @@ class SettingsRepository(private val context: Context) {
                 serverUrl = p[Keys.SERVER_URL].orEmpty(),
                 serverToken = p[Keys.SERVER_TOKEN].orEmpty(),
                 serverConsent = p[Keys.SERVER_CONSENT] ?: false,
+                liteMode = p[Keys.LITE_MODE]
+                    ?.let { runCatching { com.folio.pdf.util.LiteMode.valueOf(it) }.getOrNull() }
+                    ?: com.folio.pdf.util.LiteMode.AUTO,
+                reflowScale = p[Keys.REFLOW_SCALE] ?: 1f,
                 scrollMode = p[Keys.SCROLL_MODE]
                     ?.let { runCatching { ScrollMode.valueOf(it) }.getOrNull() }
                     ?: ScrollMode.VERTICAL,
@@ -97,6 +106,14 @@ class SettingsRepository(private val context: Context) {
             it[Keys.SERVER_URL] = url.trim().trimEnd('/')
             it[Keys.SERVER_TOKEN] = token.trim()
         }
+    }
+
+    suspend fun setLiteMode(mode: com.folio.pdf.util.LiteMode) {
+        context.dataStore.edit { it[Keys.LITE_MODE] = mode.name }
+    }
+
+    suspend fun setReflowScale(scale: Float) {
+        context.dataStore.edit { it[Keys.REFLOW_SCALE] = scale }
     }
 
     suspend fun setServerConsent(allowed: Boolean) {

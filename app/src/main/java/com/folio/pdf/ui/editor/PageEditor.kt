@@ -89,7 +89,8 @@ fun PageEditor(
 
     // Render at twice the screen width so zooming in stays sharp.
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val renderWidthPx = with(density) { (screenWidth * 2).toPx() }.roundToInt().coerceAtMost(3200)
+    val renderWidthPx = with(density) { (screenWidth * com.folio.pdf.util.DeviceProfile.renderScale).toPx() }
+        .roundToInt().coerceAtMost(3200)
 
     Box(modifier.fillMaxSize()) {
 

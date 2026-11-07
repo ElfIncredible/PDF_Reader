@@ -297,3 +297,43 @@ PDF/A, table extraction and AI. The app calls it over HTTPS and keeps working of
 2. **Automated tests:** Compose UI tests for the main flows (open → search → edit → save), plus a GitHub Actions workflow that builds the app and runs the server's `pytest`.
 3. **Nice extras:** text-to-speech read-aloud, cloud folders (Google Drive picker), Android widgets for recent files, and tablet two-pane layouts.
 4. **On-device AI:** on phones that support Gemini Nano (ML Kit GenAI APIs), summaries could work offline without the server.
+
+---
+
+## 1.1 — lighter, and runs on basic phones
+
+**Runs on Android 7.0 (API 24) and newer** (was 8.0), including 1–2 GB RAM phones.
+
+### Lite mode (Settings → Performance)
+Automatic by default: on when the phone is a "low-RAM" device, has a small app memory class, or under 3 GB RAM. You can force it on or off.
+
+| | Lite | Normal |
+|---|---|---|
+| Page render sharpness | 1.25× screen | 2× screen |
+| Biggest page bitmap | 5 MP | 12 MP |
+| Page cache | 1/14 of app memory | 1/8 |
+| Pages pre-rendered ahead | 1 | 2 |
+| Thumbnails made at once | 1 | 2 |
+| OCR / scan image width | 1700 / 1600 px | 2600 / 2200 px |
+| Max zoom | 3× | 5× |
+
+Also, in all modes: thumbnails are cached on disk (and stored as RGB_565, half the memory), text-position data is packed into 16-bit numbers (about ¼ of the memory for long documents), and caches are emptied when Android says memory is low.
+
+### Smaller download
+- ML Kit text recognition and language detection now come from Google Play services (downloaded once, shared with other apps) instead of being bundled: about 20 MB less.
+- ABI splits: Play / `assembleRelease` produce one APK per CPU type (`arm64-v8a`, `armeabi-v7a`, `x86_64`) instead of one fat APK. Upload an **App Bundle** (`bundleRelease`) to Play and this happens automatically.
+- Tighter R8 rules for BouncyCastle.
+
+### New features
+- **Read aloud** (reader menu ⋮ → Read aloud): uses the phone's text-to-speech, detects the document's language, follows along page by page. Bar at the bottom: play/pause, stop, speed (0.8× / 1× / 1.25× / 1.5×).
+- **Text view** (Reading mode → Text): shows just the words, re-flowed to the screen, with a text-size slider. Best for small screens and very light on the phone. Hyphenated words are mended and headings/bullets kept.
+- **Scan without the Play scanner**: "Take a photo" (any camera app) and "From gallery" buttons. Works on phones where the automatic document scanner isn't available.
+- **Black & white scans**: whitens paper and darkens ink (auto-contrast), giving a smaller file and better OCR.
+
+### Test checklist (1.1)
+- [ ] Settings → Performance shows "basic phone" correctly on an older phone; switching modes takes effect on the next page render.
+- [ ] Open a 200+ page PDF on a 2 GB phone; scroll fast to the end and back without a crash.
+- [ ] ⋮ → Read aloud reads the current page, turns pages by itself, pause/resume/stop and speed work.
+- [ ] Reading mode → Text: words re-flow, slider changes size, page bar still jumps.
+- [ ] Scan → Take a photo: add 2 photos, Black & white on, save; the file is smaller and text is searchable.
+- [ ] Install on an Android 7 device or emulator (API 24).

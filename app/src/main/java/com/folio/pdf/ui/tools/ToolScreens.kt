@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -374,7 +375,26 @@ private fun TextContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
 private fun ScanContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolean) {
     val context = LocalContext.current
     var recognise by rememberSaveable { mutableStateOf(true) }
+    var blackAndWhite by rememberSaveable { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var scannerMissing by rememberSaveable { mutableStateOf(false) }
+    // Fallbacks for phones without the Play services scanner: the plain camera app and the gallery.
+    var pendingPhoto by rememberSaveable { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val uri = pendingPhoto?.let(Uri::parse)
+        if (ok && uri != null) vm.add(listOf(uri))
+        pendingPhoto = null
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(60)) { uris ->
+        if (uris.isNotEmpty()) vm.add(uris)
+    }
+    fun takePhoto() {
+        val dir = java.io.File(context.cacheDir, "camera").apply { mkdirs() }
+        val file = java.io.File(dir, "page-${System.currentTimeMillis()}.jpg")
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        pendingPhoto = uri.toString()
+        try { camera.launch(uri) } catch (e: android.content.ActivityNotFoundException) { error = "No camera app found on this phone" }
+    }
     val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             GmsDocumentScanningResult.fromActivityResultIntent(result.data)?.pages
@@ -382,7 +402,7 @@ private fun ScanContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
         }
     }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF)) { uri ->
-        uri?.let { vm.scanToPdf(recognise, it) }
+        uri?.let { vm.scanToPdf(recognise, it, blackAndWhite) }
     }
     fun startScan() {
         val activity = context.findActivity() ?: return
@@ -395,7 +415,8 @@ private fun ScanContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
         GmsDocumentScanning.getClient(options).getStartScanIntent(activity)
             .addOnSuccessListener { sender -> error = null; scanner.launch(IntentSenderRequest.Builder(sender).build()) }
             .addOnFailureListener {
-                error = "The scanner isn't available: ${it.message ?: "update Google Play services and try again"}"
+                scannerMissing = true
+                error = "The automatic scanner isn't available on this phone. Use \"Take a photo\" instead; it works everywhere."
             }
     }
 
@@ -412,6 +433,20 @@ private fun ScanContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
             Icon(Icons.Outlined.DocumentScanner, null)
             Text(if (inputs.isEmpty()) "Start scanning" else "Scan more pages", Modifier.padding(start = 8.dp))
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = ::takePhoto, enabled = !busy, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Outlined.PhotoCamera, null)
+                Text("Take a photo", Modifier.padding(start = 6.dp))
+            }
+            OutlinedButton(
+                onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                enabled = !busy, modifier = Modifier.weight(1f),
+            ) {
+                Icon(Icons.Outlined.Image, null)
+                Text("From gallery", Modifier.padding(start = 6.dp))
+            }
+        }
+        if (scannerMissing) Hint("Tip: hold the phone straight above the page in good light. Turn on Black & white below for the cleanest result.")
         error?.let { ErrorText(it) }
     }
     if (inputs.isNotEmpty()) {
@@ -422,6 +457,15 @@ private fun ScanContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
                     Hint("Find, select and copy words later. Works on this phone; nothing is uploaded. Latin-script languages.")
                 }
                 Switch(checked = recognise, onCheckedChange = { recognise = it })
+            }
+        }
+        Section("Look") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Black & white", style = MaterialTheme.typography.bodyLarge)
+                    Hint("Whiter paper, darker text and a smaller file. Best for letters and forms; leave off for photos.")
+                }
+                Switch(checked = blackAndWhite, onCheckedChange = { blackAndWhite = it })
             }
         }
         RunButton(

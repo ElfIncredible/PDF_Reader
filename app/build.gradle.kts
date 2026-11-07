@@ -11,10 +11,21 @@ android {
 
     defaultConfig {
         applicationId = "com.folio.pdf"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.0"
+        versionCode = 8
+        versionName = "1.1.0"
+    }
+
+    // One small APK per processor type instead of one big APK with all of them.
+    // (Play Store App Bundles do this automatically; this helps when sharing APKs directly.)
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
     }
 
     buildTypes {

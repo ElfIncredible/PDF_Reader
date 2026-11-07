@@ -256,7 +256,7 @@ class PageZoom {
     val isZoomed: Boolean get() = scale > 1.01f
 
     fun transform(zoom: Float, pan: Offset) {
-        scale = (scale * zoom).coerceIn(1f, 5f)
+        scale = (scale * zoom).coerceIn(1f, com.folio.pdf.util.DeviceProfile.maxZoom)
         offset = clamp(offset + pan)
     }
 

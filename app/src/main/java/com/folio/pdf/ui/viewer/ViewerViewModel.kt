@@ -112,6 +112,7 @@ data class ReaderPrefs(
     val scrollMode: ScrollMode = ScrollMode.VERTICAL,
     val colorMode: ColorMode = ColorMode.NORMAL,
     val keepScreenOn: Boolean = false,
+    val reflowScale: Float = 1f,
 )
 
 class ViewerViewModel(
@@ -148,7 +149,7 @@ class ViewerViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val prefs: StateFlow<ReaderPrefs> = container.settings.settings
-        .map { ReaderPrefs(it.scrollMode, it.colorMode, it.keepScreenOn) }
+        .map { ReaderPrefs(it.scrollMode, it.colorMode, it.keepScreenOn, it.reflowScale) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, ReaderPrefs())
 
     private val query = MutableStateFlow("")
@@ -376,6 +377,33 @@ class ViewerViewModel(
 
     fun setKeepScreenOn(on: Boolean) = viewModelScope.launch { container.settings.setKeepScreenOn(on) }
 
+    fun setReflowScale(scale: Float) = viewModelScope.launch { container.settings.setReflowScale(scale) }
+
+    // ---- Read aloud ------------------------------------------------------------------
+
+    private var reader: com.folio.pdf.speech.ReadAloud? = null
+    private val _readAloud = MutableStateFlow(com.folio.pdf.speech.ReadAloudState())
+    val readAloud: StateFlow<com.folio.pdf.speech.ReadAloudState> = _readAloud.asStateFlow()
+
+    fun startReading(page: Int) {
+        val count = (state.value as? ViewerUiState.Ready)?.document?.pageCount ?: return
+        val r = reader ?: com.folio.pdf.speech.ReadAloud(appContext, { pageText(it)?.text }, count).also { created ->
+            reader = created
+            viewModelScope.launch { created.state.collect { _readAloud.value = it } }
+        }
+        viewModelScope.launch {
+            // Speak in the document's language when the phone has a voice for it.
+            val sample = (page until minOf(count, page + 3)).joinToString(" ") { pageText(it)?.text.orEmpty() }
+            val language = if (sample.isBlank()) null else runCatching { com.folio.pdf.translate.Translator.detect(sample) }.getOrNull()
+            r.start(page, language)
+        }
+    }
+
+    fun pauseReading() = reader?.pause()
+    fun resumeReading() = reader?.resume()
+    fun stopReading() = reader?.stop()
+    fun setReadingRate(rate: Float) = reader?.setRate(rate)
+
     // ---- Editing (Phase 3) --------------------------------------------------------
 
     override fun newId(): Long = ids.incrementAndGet()
@@ -561,6 +589,7 @@ class ViewerViewModel(
     }
 
     override fun onCleared() {
+        reader?.shutdown()
         document?.close()
         unlockedCopy?.delete()
     }

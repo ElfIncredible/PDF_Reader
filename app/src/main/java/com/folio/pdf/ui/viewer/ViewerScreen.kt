@@ -148,6 +148,7 @@ private fun PdfReader(
     val editor by vm.editorState.collectAsStateWithLifecycle()
     val annotationsReady by vm.annotationsReady.collectAsStateWithLifecycle()
     val formFields by vm.formFields.collectAsStateWithLifecycle()
+    val readAloud by vm.readAloud.collectAsStateWithLifecycle()
 
     var page by rememberSaveable { mutableIntStateOf(state.initialPage) }
     var navigator by remember { mutableStateOf<PageNavigator?>(null) }
@@ -218,6 +219,12 @@ private fun PdfReader(
             }
         }
     }
+
+    // Follow along while reading aloud.
+    LaunchedEffect(readAloud.page, readAloud.active) {
+        if (readAloud.active && readAloud.page != page) navigator?.goTo(readAloud.page)
+    }
+    LaunchedEffect(readAloud.error) { readAloud.error?.let { toast(it) } }
 
     // Follow the current search hit.
     val activeHit = search.currentHit
@@ -309,6 +316,14 @@ private fun PdfReader(
                 onNavigator = { navigator = it },
                 onPageChanged = onPageChanged,
             )
+            ScrollMode.TEXT -> ReflowReader(
+                env = env,
+                scale = prefs.reflowScale,
+                initialPage = page,
+                readingPage = readAloud.page.takeIf { readAloud.active },
+                onNavigator = { navigator = it },
+                onPageChanged = onPageChanged,
+            )
         }
 
         // ---- Top: reader bar / search bar / selection bar
@@ -387,6 +402,7 @@ private fun PdfReader(
                         },
                         onContents = { showNav = true },
                         onReadingMode = { showModes = true },
+                        onReadAloud = { vm.startReading(page) },
                         onGoToPage = { showGoTo = true },
                         onToggleFavourite = {
                             vm.toggleFavorite()
@@ -424,8 +440,18 @@ private fun PdfReader(
         }
 
         // ---- Bottom: page bar, or a small page pill in full-screen
+        if (readAloud.active) {
+            Box(Modifier.align(Alignment.BottomCenter)) {
+                ReadAloudBar(
+                    state = readAloud,
+                    onPlayPause = { if (readAloud.speaking) vm.pauseReading() else vm.resumeReading() },
+                    onStop = { vm.stopReading() },
+                    onRate = { vm.setReadingRate(it) },
+                )
+            }
+        }
         AnimatedVisibility(
-            visible = chromeVisible && selection == null,
+            visible = chromeVisible && selection == null && !readAloud.active,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -486,6 +512,7 @@ private fun PdfReader(
             onScrollMode = vm::setScrollMode,
             onColorMode = vm::setColorMode,
             onKeepScreenOn = vm::setKeepScreenOn,
+            onReflowScale = vm::setReflowScale,
             onDismiss = { showModes = false },
         )
     }

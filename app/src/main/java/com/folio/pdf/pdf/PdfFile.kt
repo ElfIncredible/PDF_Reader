@@ -74,8 +74,9 @@ class PdfFile private constructor(
                 var h = (page.height.toFloat() * w / page.width).roundToInt().coerceAtLeast(1)
                 // Never allocate more than MAX_PIXELS; the UI scales up if needed.
                 val pixels = w.toLong() * h
-                if (pixels > MAX_PIXELS) {
-                    val f = sqrt(MAX_PIXELS.toDouble() / pixels)
+                val maxPixels = com.folio.pdf.util.DeviceProfile.maxPagePixels
+                if (pixels > maxPixels) {
+                    val f = sqrt(maxPixels.toDouble() / pixels)
                     w = (w * f).toInt().coerceAtLeast(1)
                     h = (h * f).toInt().coerceAtLeast(1)
                 }
@@ -128,7 +129,8 @@ class PdfFile private constructor(
             snapshot.forEach { it.trimCache() }
         }
 
-        private fun cacheSizeKb(): Int = (Runtime.getRuntime().maxMemory() / 1024 / 8).toInt()
+        private fun cacheSizeKb(): Int =
+            (Runtime.getRuntime().maxMemory() / 1024 / com.folio.pdf.util.DeviceProfile.cacheDivisor).toInt()
 
         /**
          * Opens [uri]. Throws [SecurityException] for password-protected files or

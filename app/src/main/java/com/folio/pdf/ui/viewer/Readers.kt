@@ -49,7 +49,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 const val MIN_ZOOM = 1f
-const val MAX_ZOOM = 5f
+val MAX_ZOOM: Float get() = com.folio.pdf.util.DeviceProfile.maxZoom
 private const val DOUBLE_TAP_ZOOM = 2.5f
 
 /** Lets the screen jump around without knowing which reading mode is active. */
@@ -115,7 +115,8 @@ fun VerticalReader(
         delay(300) // let the visible pages go first
         val widthPx = lastRenderWidth
         if (widthPx > 0) {
-            for (p in listOf(visiblePage + 1, visiblePage + 2, visiblePage - 1)) {
+            val ahead = (1..com.folio.pdf.util.DeviceProfile.prefetchPages).map { visiblePage + it }
+            for (p in ahead + (visiblePage - 1)) {
                 if (p in 0 until env.doc.pageCount) env.doc.renderPage(p, widthPx)
             }
         }
@@ -229,7 +230,8 @@ fun PagedReader(
         val bars = WindowInsets.systemBarsIgnoringVisibility.asPaddingValues()
         // Render at 2× screen width so moderate zoom stays crisp.
         val pageWidth = maxWidth
-        val renderWidthPx = with(density) { (pageWidth * 2).toPx() }.roundToInt().coerceAtMost(3200)
+        val renderWidthPx = with(density) { (pageWidth * com.folio.pdf.util.DeviceProfile.renderScale).toPx() }
+            .roundToInt().coerceAtMost(3200)
 
         HorizontalPager(
             state = pagerState,

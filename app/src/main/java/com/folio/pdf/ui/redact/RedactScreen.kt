@@ -307,7 +307,9 @@ private fun RedactPage(
     onRemove: (RedactMark) -> Unit,
 ) {
     val density = LocalDensity.current
-    val widthPx = with(density) { (LocalConfiguration.current.screenWidthDp.dp * 2).toPx() }.roundToInt().coerceAtMost(3000)
+    val widthPx = with(density) {
+        (LocalConfiguration.current.screenWidthDp.dp * com.folio.pdf.util.DeviceProfile.renderScale).toPx()
+    }.roundToInt().coerceAtMost(3000)
     var bitmap by remember(doc, index) { mutableStateOf<Bitmap?>(doc.cachedPage(index, widthPx)) }
     var aspect by remember(doc, index) { mutableFloatStateOf(1.414f) }
     LaunchedEffect(doc, index) {

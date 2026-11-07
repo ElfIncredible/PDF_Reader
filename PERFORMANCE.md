@@ -30,3 +30,23 @@
 ## Shipping
 Build an **App Bundle** (*Build → Generate Signed App Bundle*) for the Play Store. Google then delivers only the
 native code for each phone's processor (ML Kit and PDF engines include several), which roughly halves download size.
+
+## Lite mode (1.1)
+
+`util/DeviceProfile.kt` decides, once at start-up and again whenever the setting changes:
+
+- `isBasicPhone = isLowRamDevice || memoryClass <= 192 MB || totalMem < 3 GB`
+- `lite = when (setting) { AUTO -> isBasicPhone; ON -> true; OFF -> false }`
+
+Everything memory-heavy reads its numbers from `DeviceProfile` rather than constants: `renderScale`, `maxPagePixels`, `cacheDivisor`, `prefetchPages`, `thumbnailWorkers`, `ocrMaxWidth`, `maxZoom`. To tune for a device class, change them there only.
+
+Rough numbers on a 2 GB / memoryClass 128 MB phone, 1080-px-wide screen:
+
+| | Normal | Lite |
+|---|---|---|
+| One rendered page (A4) | ~2160×3050 ARGB ≈ 26 MB | ~1350×1900 ≈ 10 MB |
+| Page cache budget | 16 MB | ~9 MB |
+| Thumbnail strip, 60 pages | ~6 MB ARGB | ~3 MB RGB_565 (disk-cached) |
+| Text boxes, 500 pages × 3k chars | ~24 MB floats | ~6 MB shorts |
+
+Other: Text view (`ReflowReader`) renders no bitmaps at all, which makes it the lightest way to read long documents.

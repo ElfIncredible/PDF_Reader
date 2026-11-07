@@ -236,6 +236,7 @@ fun ReadingModeSheet(
     onScrollMode: (ScrollMode) -> Unit,
     onColorMode: (ColorMode) -> Unit,
     onKeepScreenOn: (Boolean) -> Unit,
+    onReflowScale: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -246,7 +247,7 @@ fun ReadingModeSheet(
             Text("Reading mode", style = MaterialTheme.typography.titleLarge)
 
             Text("Page flow", style = MaterialTheme.typography.labelLarge)
-            val flows = listOf(ScrollMode.VERTICAL to "Continuous scroll", ScrollMode.PAGED to "Page by page")
+            val flows = listOf(ScrollMode.VERTICAL to "Scroll", ScrollMode.PAGED to "Pages", ScrollMode.TEXT to "Text")
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 flows.forEachIndexed { i, (mode, label) ->
                     SegmentedButton(
@@ -255,6 +256,25 @@ fun ReadingModeSheet(
                         shape = SegmentedButtonDefaults.itemShape(i, flows.size),
                     ) { Text(label, maxLines = 1) }
                 }
+            }
+
+            Text(
+                when (prefs.scrollMode) {
+                    ScrollMode.VERTICAL -> "Pages one under another; scroll down."
+                    ScrollMode.PAGED -> "One page at a time; swipe sideways."
+                    ScrollMode.TEXT -> "Just the words, in a size you choose. Lightest on the battery and easiest on small screens."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (prefs.scrollMode == ScrollMode.TEXT) {
+                Text("Text size", style = MaterialTheme.typography.labelLarge)
+                androidx.compose.material3.Slider(
+                    value = prefs.reflowScale,
+                    onValueChange = onReflowScale,
+                    valueRange = 0.8f..2.2f,
+                    steps = 6,
+                )
             }
 
             Text("Colours", style = MaterialTheme.typography.labelLarge)

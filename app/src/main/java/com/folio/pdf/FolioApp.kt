@@ -8,6 +8,7 @@ import com.folio.pdf.data.RecentsRepository
 import com.folio.pdf.data.SettingsRepository
 import com.folio.pdf.data.db.AppDatabase
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import kotlinx.coroutines.launch
 
 class FolioApp : Application() {
     lateinit var container: AppContainer
@@ -17,7 +18,12 @@ class FolioApp : Application() {
         super.onCreate()
         // PdfBox needs its fonts/resources wired up once per process.
         PDFBoxResourceLoader.init(applicationContext)
+        com.folio.pdf.util.DeviceProfile.init(this)
         container = AppContainer(this)
+        // Keep Lite mode in step with the setting (Automatic follows the phone's memory).
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default).launch {
+            container.settings.settings.collect { com.folio.pdf.util.DeviceProfile.apply(it.liteMode) }
+        }
         if (BuildConfig.DEBUG) enableStrictMode()
     }
 

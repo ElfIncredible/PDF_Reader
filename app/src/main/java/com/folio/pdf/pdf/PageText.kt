@@ -11,7 +11,25 @@ import kotlin.math.min
  * map straight onto however large the page is drawn. Gap characters (spaces and
  * line breaks we insert between words) have NaN boxes.
  */
-class PageText(val text: String, private val boxes: FloatArray) {
+class PageText(val text: String, rawBoxes: FloatArray) {
+
+    /*
+     * Boxes are stored quantised to 16 bits (0..65534, 65535 = "no box"): half the memory of
+     * floats, still 1/65534 of a page in precision. Matters on long documents and basic phones.
+     */
+    private val packed: ShortArray = ShortArray(rawBoxes.size) { i ->
+        val v = rawBoxes[i]
+        if (v.isNaN()) NONE.toShort() else (v.coerceIn(0f, 1f) * SCALE).toInt().toShort()
+    }
+
+    private fun box(i: Int): Float {
+        val raw = packed[i].toInt() and 0xFFFF
+        return if (raw == NONE) Float.NaN else raw / SCALE
+    }
+
+    private val boxes = object {
+        operator fun get(i: Int): Float = box(i)
+    }
 
     val isEmpty: Boolean get() = text.isBlank()
 
@@ -88,6 +106,9 @@ class PageText(val text: String, private val boxes: FloatArray) {
     }
 
     companion object {
+        private const val NONE = 0xFFFF
+        private const val SCALE = 65534f
+
         val EMPTY = PageText("", FloatArray(0))
     }
 }
