@@ -6,15 +6,26 @@ plugins {
 }
 
 android {
-    namespace = "com.folio.pdf"
+    namespace = "com.vonu.pdf"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.folio.pdf"
-        minSdk = 26
+        applicationId = "com.vonu.pdf"
+        minSdk = 24
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.0"
+        versionCode = 9
+        versionName = "1.1.1"
+    }
+
+    // One small APK per processor type instead of one big APK with all of them.
+    // (Play Store App Bundles do this automatically; this helps when sharing APKs directly.)
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
     }
 
     buildTypes {
@@ -90,5 +101,4 @@ dependencies {
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
     implementation(libs.androidx.profileinstaller)
-    debugImplementation(libs.leakcanary)
 }

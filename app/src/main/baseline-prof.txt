@@ -1,15 +1,15 @@
-# Baseline Profile: tells Android which code to compile ahead of time, so Folio starts and
+# Baseline Profile: tells Android which code to compile ahead of time, so Vonu starts and
 # scrolls faster from the very first launch (installed by androidx.profileinstaller).
 # These wildcard rules cover the app's own code on the hot paths: start-up, Home, the reader.
-HSPLcom/folio/pdf/FolioApp;->**(**)**
-HSPLcom/folio/pdf/AppContainer;->**(**)**
-HSPLcom/folio/pdf/MainActivity;->**(**)**
-HSPLcom/folio/pdf/navigation/**;->**(**)**
-HSPLcom/folio/pdf/ui/home/**;->**(**)**
-HSPLcom/folio/pdf/ui/components/**;->**(**)**
-HSPLcom/folio/pdf/ui/theme/**;->**(**)**
-HSPLcom/folio/pdf/ui/viewer/**;->**(**)**
-HSPLcom/folio/pdf/pdf/PdfFile**;->**(**)**
-HSPLcom/folio/pdf/pdf/PageText;->**(**)**
-HSPLcom/folio/pdf/data/**;->**(**)**
-Lcom/folio/pdf/**;
+HSPLcom/vonu/pdf/VonuApp;->**(**)**
+HSPLcom/vonu/pdf/AppContainer;->**(**)**
+HSPLcom/vonu/pdf/MainActivity;->**(**)**
+HSPLcom/vonu/pdf/navigation/**;->**(**)**
+HSPLcom/vonu/pdf/ui/home/**;->**(**)**
+HSPLcom/vonu/pdf/ui/components/**;->**(**)**
+HSPLcom/vonu/pdf/ui/theme/**;->**(**)**
+HSPLcom/vonu/pdf/ui/viewer/**;->**(**)**
+HSPLcom/vonu/pdf/pdf/PdfFile**;->**(**)**
+HSPLcom/vonu/pdf/pdf/PageText;->**(**)**
+HSPLcom/vonu/pdf/data/**;->**(**)**
+Lcom/vonu/pdf/**;

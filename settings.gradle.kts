@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Folio"
+rootProject.name = "Vonu"
 include(":app")
