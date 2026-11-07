@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Vonu: a page with an amber light rising behind its folded corner. Kept inside the 66dp safe zone. -->
+<!-- Vonu PDF: a white page with the Vonu amber dot. Scaled into the 66dp safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Glow -->
-    <path android:fillColor="#FFB627" android:fillAlpha="0.25"
-        android:pathData="M66,38m-17,0a17,17 0,1 1,34 0a17,17 0,1 1,-34 0" />
-    <path android:fillColor="#FFB627"
-        android:pathData="M66,38m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0" />
-    <!-- Page -->
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M36,32a4,4 0,0 1,4 -4h18l12,12v36a4,4 0,0 1,-4 4h-26a4,4 0,0 1,-4 -4z" />
-    <!-- Folded corner -->
-    <path android:fillColor="#C9C6F2"
-        android:pathData="M58,28v8a4,4 0,0 0,4 4h8z" />
-    <!-- Text lines -->
-    <path android:strokeColor="#4338CA" android:strokeWidth="3.4" android:strokeLineCap="round"
-        android:pathData="M43,52h20M43,60h20M43,68h12" />
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.82" android:scaleY="0.82" android:translateX="-3">
+        <!-- Page -->
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M34,34a4,4 0,0 1,4 -4h18l12,12v34a4,4 0,0 1,-4 4h-26a4,4 0,0 1,-4 -4z" />
+        <!-- Folded corner -->
+        <path android:fillColor="#BFDBFE"
+            android:pathData="M56,30v8a4,4 0,0 0,4 4h8z" />
+        <!-- Text lines -->
+        <path android:strokeColor="#1D4ED8" android:strokeWidth="3.4" android:strokeLineCap="round"
+            android:pathData="M41,54h20M41,62h20M41,70h12" />
+        <!-- The Vonu dot -->
+        <path android:fillColor="#FFB627"
+            android:pathData="M74,32m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+    </group>
 </vector>

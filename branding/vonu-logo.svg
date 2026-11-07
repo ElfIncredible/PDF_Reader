@@ -1,16 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" height="160" viewBox="0 0 640 150">
-<g transform="scale(1.389)">
-<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4338CA"/><stop offset="1" stop-color="#1E1B4B"/></linearGradient></defs>
-<rect width="108" height="108" rx="24" fill="url(#bg)"/>
-<circle cx="66" cy="38" r="17" fill="#FFB627" opacity="0.22"/>
-<circle cx="66" cy="38" r="11" fill="#FFB627"/><path d="M36 32 a4 4 0 0 1 4-4 h18 l12 12 v36 a4 4 0 0 1 -4 4 h-26 a4 4 0 0 1 -4-4 z" fill="#FFFFFF"/>
-<path d="M58 28 v8 a4 4 0 0 0 4 4 h8 z" fill="#C9C6F2"/>
-<g stroke="#4338CA" stroke-width="3.4" stroke-linecap="round">
-<path d="M43 52 h20"/><path d="M43 60 h20"/><path d="M43 68 h12"/></g>
-</g>
-<g transform="translate(190,0)"><g fill="none" stroke="#1E1B4B" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-<path d="M20 62 L54 130 L88 62"/>
-<path d="M222 62 V130 M222 97 a33 33 0 0 1 66 0 V130"/>
-<path d="M340 62 V97 a33 33 0 0 0 66 0 V62 M406 62 V130"/></g>
-<circle cx="155" cy="96" r="48" fill="#FFB627" opacity="0.25"/>
-<circle cx="155" cy="96" r="34" fill="#FFB627"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 483 120" width="483" height="120"><svg x="0" y="0" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Vonu symbol"><rect width="120" height="120" rx="28" fill="#1D4ED8"></rect><path d="M34 36 L60 84 L86 36" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="60" cy="37" r="9" fill="#FFB627"></circle></svg><svg x="150" y="23" viewBox="0 46 450 100" width="333" height="74" role="img" aria-label="vonu"><g fill="none" stroke="#0B1F44" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"><path d="M20 62 L54 130 L88 62"></path><path d="M244 62 V130 M244 97 a33 33 0 0 1 66 0 V130"></path><path d="M358 62 V97 a33 33 0 0 0 66 0 V62 M424 62 V130"></path></g><circle cx="166" cy="96" r="34" fill="none" stroke="#0B1F44" stroke-width="26"></circle></svg></svg>

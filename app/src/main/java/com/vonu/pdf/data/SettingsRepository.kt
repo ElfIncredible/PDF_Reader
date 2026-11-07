@@ -21,7 +21,7 @@ enum class ColorMode { NORMAL, SEPIA, NIGHT }
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
+    val dynamicColor: Boolean = false,
     val keepScreenOn: Boolean = false,
     val scrollMode: ScrollMode = ScrollMode.VERTICAL,
     val colorMode: ColorMode = ColorMode.NORMAL,
@@ -62,7 +62,7 @@ class SettingsRepository(private val context: Context) {
                 themeMode = p[Keys.THEME_MODE]
                     ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                     ?: ThemeMode.SYSTEM,
-                dynamicColor = p[Keys.DYNAMIC_COLOR] ?: true,
+                dynamicColor = p[Keys.DYNAMIC_COLOR] ?: false,
                 keepScreenOn = p[Keys.KEEP_SCREEN_ON] ?: false,
                 libraryTreeUri = p[Keys.LIBRARY_TREE],
                 serverUrl = p[Keys.SERVER_URL].orEmpty(),

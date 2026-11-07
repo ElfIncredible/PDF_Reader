@@ -1,5 +1,7 @@
 # Vonu PDF — Android PDF reader & editor
 
+> **Full documentation:** [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) (also as a Word file: [docs/Vonu-PDF-Documentation.docx](docs/Vonu-PDF-Documentation.docx)).
+
 A simple, all-round PDF app: read, annotate, sign, merge, scan and more.
 **Version 1.0: all seven phases are complete.** Android app (Kotlin + Compose) plus an optional Python server (`vonu-server/`) for AI and conversions.
 
@@ -342,3 +344,7 @@ Also, in all modes: thumbnails are cached on disk (and stored as RGB_565, half t
 - **One app only.** LeakCanary (a developer memory checker that added a second "Leaks" icon in debug builds) is removed.
 - **AI assistant is "coming soon".** It shows a *Soon* badge on the home screen and sits under *Coming soon* in Tools; it's hidden from the reader menu.
   The code is kept: set `AI_ASSISTANT = true` in `util/Features.kt` to bring it back. Office conversion and the server settings still work.
+
+### 1.1.2 changes
+- **New Vonu blue** (`#1D4ED8`) with the amber Vonu dot: app icon, app colours and all logo files in `branding/`.
+- Wallpaper colours are now off by default so the app shows Vonu blue; turn them on in Settings → Appearance.

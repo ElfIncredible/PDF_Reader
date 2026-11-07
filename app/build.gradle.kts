@@ -13,8 +13,8 @@ android {
         applicationId = "com.vonu.pdf"
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.1.1"
+        versionCode = 10
+        versionName = "1.1.2"
     }
 
     // One small APK per processor type instead of one big APK with all of them.
