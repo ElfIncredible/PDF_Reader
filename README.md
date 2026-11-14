@@ -348,3 +348,4 @@ Also, in all modes: thumbnails are cached on disk (and stored as RGB_565, half t
 ### 1.1.2 changes
 - **New Vonu blue** (`#1D4ED8`) with the amber Vonu dot: app icon, app colours and all logo files in `branding/`.
 - Wallpaper colours are now off by default so the app shows Vonu blue; turn them on in Settings → Appearance.
+- **V logo app icon.** The launcher icon is now the Vonu symbol (white V holding the amber dot) instead of the page icon, including the Android 13+ themed icon and the PNG icons for Android 7.x. The logo also shows next to "Vonu" on the home screen and in Settings → About (`res/drawable/vonu_logo.xml`).

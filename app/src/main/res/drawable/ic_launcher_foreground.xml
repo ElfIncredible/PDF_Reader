@@ -1,22 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Vonu PDF: a white page with the Vonu amber dot. Scaled into the 66dp safe zone. -->
+<!-- Vonu symbol: a white V holding the amber dot (branding/vonu-symbol.svg).
+     Drawn on the 120-unit symbol grid, scaled 0.72 and centred so it sits inside the 66dp safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.82" android:scaleY="0.82" android:translateX="-3">
-        <!-- Page -->
-        <path android:fillColor="#FFFFFF"
-            android:pathData="M34,34a4,4 0,0 1,4 -4h18l12,12v34a4,4 0,0 1,-4 4h-26a4,4 0,0 1,-4 -4z" />
-        <!-- Folded corner -->
-        <path android:fillColor="#BFDBFE"
-            android:pathData="M56,30v8a4,4 0,0 0,4 4h8z" />
-        <!-- Text lines -->
-        <path android:strokeColor="#1D4ED8" android:strokeWidth="3.4" android:strokeLineCap="round"
-            android:pathData="M41,54h20M41,62h20M41,70h12" />
+    <group android:scaleX="0.72" android:scaleY="0.72" android:translateX="10.8" android:translateY="10.8">
+        <!-- The V -->
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="15"
+            android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M34,36L60,84L86,36" />
         <!-- The Vonu dot -->
         <path android:fillColor="#FFB627"
-            android:pathData="M74,32m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+            android:pathData="M60,37m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" />
     </group>
 </vector>

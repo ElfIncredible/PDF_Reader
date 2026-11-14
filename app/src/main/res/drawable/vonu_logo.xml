@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Vonu symbol tile for use inside the app (branding/vonu-symbol.svg). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <path android:fillColor="#1D4ED8"
+        android:pathData="M28,0h64a28,28 0,0 1,28 28v64a28,28 0,0 1,-28 28h-64a28,28 0,0 1,-28 -28v-64a28,28 0,0 1,28 -28z" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="15"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M34,36L60,84L86,36" />
+    <path android:fillColor="#FFB627"
+        android:pathData="M60,37m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" />
+</vector>
