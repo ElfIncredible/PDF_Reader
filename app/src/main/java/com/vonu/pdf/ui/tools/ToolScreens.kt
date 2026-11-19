@@ -359,7 +359,7 @@ private fun TextContent(vm: ToolViewModel, inputs: List<ToolInput>, busy: Boolea
         OutlinedButton(onClick = { pick.launch(arrayOf("text/plain", "text/*")) }, enabled = !busy) {
             Text(if (input == null) "Choose a .txt file" else "Choose a different file")
         }
-        Hint("Word, Excel and PowerPoint files need a conversion server; that arrives with the Vonu server in Phase 7.")
+        Hint("For Word, Excel or PowerPoint files, use the Word, Excel, PowerPoint → PDF tool.")
     }
     Section("Text size") { Choice(textSizes.map { it.first }, size, { s -> textSizes.first { it.first == s }.second }) { size = it } }
     RunButton(

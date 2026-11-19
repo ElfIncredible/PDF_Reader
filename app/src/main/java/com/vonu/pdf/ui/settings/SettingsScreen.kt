@@ -1,5 +1,8 @@
 package com.vonu.pdf.ui.settings
 
+import com.vonu.pdf.ui.components.BrandLabel
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
@@ -161,7 +164,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             ListItem(
                 modifier = Modifier.clickable { confirmClear = true },
                 headlineContent = { Text("Clear recent history") },
-                supportingContent = { Text("Favourites are kept") },
+                supportingContent = { Text("Starred files are kept") },
             )
             ListItem(
                 modifier = Modifier.clickable {
@@ -278,11 +281,10 @@ private fun ServerSection(settings: AppSettings) {
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(
+    // Same mono section label as the Tools and History tabs.
+    BrandLabel(
         text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+        Modifier.fillMaxWidth().padding(start = 16.dp, top = 20.dp, bottom = 4.dp).semantics { heading() },
     )
 }
 

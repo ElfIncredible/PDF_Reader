@@ -254,7 +254,7 @@ private fun PdfReader(
                 when {
                     !index.finished -> "Still reading this document's text, try again in a moment"
                     index.failed -> "Couldn't read the text in this PDF"
-                    else -> "No selectable text here. It may be a scan; OCR arrives in Phase 5"
+                    else -> "No selectable text here. If it is a scan, run Tools › Make PDF searchable"
                 },
             )
         },
@@ -406,7 +406,7 @@ private fun PdfReader(
                         onGoToPage = { showGoTo = true },
                         onToggleFavourite = {
                             vm.toggleFavorite()
-                            toast(if (isFavourite) "Removed from favourites" else "Added to favourites")
+                            toast(if (isFavourite) "Unstarred" else "Starred")
                         },
                         onShare = { sharePdf(context, uri, state.title) },
                         tools = if (state.locked) listOf(ToolKind.UNLOCK) else listOf(

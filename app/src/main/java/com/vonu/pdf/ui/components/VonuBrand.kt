@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.vonu.pdf.R
 import com.vonu.pdf.ui.theme.Wordmark
 
-private val Label = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 10.sp, letterSpacing = 2.sp)
+private val Label = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.5.sp)
 
 /** Brand bar title: the Vonu PDF mark, a small "VONU" label and the product name. */
 @Composable

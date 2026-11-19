@@ -63,8 +63,14 @@ fun DocumentCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // Reading position first when there is one; otherwise length and size. When is always last.
                 val details = listOfNotNull(
-                    if (doc.pageCount > 0) "Page ${doc.lastPage + 1} of ${doc.pageCount}" else null,
+                    when {
+                        doc.lastPage > 0 -> "Page ${doc.lastPage + 1} of ${doc.pageCount}"
+                        doc.pageCount == 1 -> "1 page"
+                        doc.pageCount > 1 -> "${doc.pageCount} pages"
+                        else -> null
+                    },
                     formatFileSize(doc.sizeBytes).ifEmpty { null },
                     formatRelativeTime(doc.lastOpenedAt).ifEmpty { null },
                 ).joinToString(" · ")
@@ -75,18 +81,20 @@ fun DocumentCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (doc.pageCount > 1) {
+                // Progress only once reading has started; an empty bar on every new file is noise.
+                if (doc.pageCount > 1 && doc.lastPage > 0) {
                     LinearProgressIndicator(
                         progress = { (doc.lastPage + 1f) / doc.pageCount },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
+                        trackColor = MaterialTheme.colorScheme.outlineVariant,
                     )
                 }
             }
             IconButton(onClick = onToggleFavorite) {
                 if (doc.isFavorite) {
-                    Icon(Icons.Filled.Star, "Remove from favourites", tint = MaterialTheme.colorScheme.tertiary)
+                    Icon(Icons.Filled.Star, "Unstar", tint = MaterialTheme.colorScheme.tertiary)
                 } else {
-                    Icon(Icons.Outlined.StarBorder, "Add to favourites")
+                    Icon(Icons.Outlined.StarBorder, "Star")
                 }
             }
             Box {

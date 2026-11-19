@@ -150,7 +150,7 @@ fun ReaderTopBar(
                         onClick = { menu = false; onGoToPage() },
                     )
                     DropdownMenuItem(
-                        text = { Text(if (favourite) "Remove from favourites" else "Add to favourites") },
+                        text = { Text(if (favourite) "Unstar" else "Star") },
                         leadingIcon = {
                             Icon(if (favourite) Icons.Filled.Star else Icons.Outlined.StarBorder, null)
                         },
@@ -244,7 +244,7 @@ fun SearchStatus(index: IndexProgress, search: SearchState) {
         val message = when {
             index.failed -> "Couldn't read the text in this PDF, so it can't be searched."
             index.finished && !index.hasText ->
-                "This PDF has no searchable text. It may be a scan; text recognition (OCR) arrives in Phase 5."
+                "This PDF has no searchable text. If it is a scan, run Tools › Make PDF searchable first."
             search.query.isNotBlank() && search.hits.isEmpty() && !search.searching && index.finished ->
                 "No matches for \"${search.query.trim()}\""
             !index.finished -> "Reading text… ${(index.fraction * 100).roundToInt()}%. Matches appear as pages are read."

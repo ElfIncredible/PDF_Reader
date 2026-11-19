@@ -23,6 +23,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vonu.pdf.ui.components.BrandLabel
@@ -44,7 +46,7 @@ fun ToolsHubScreen(onOpenTool: (ToolKind) -> Unit) {
                 val tools = groups[group].orEmpty()
                 if (tools.isEmpty()) return@forEach
                 item(key = group.name) {
-                    BrandLabel(group.title, Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp))
+                    BrandLabel(group.title, Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp).semantics { heading() })
                 }
                 items(tools, key = { it.id }) { kind -> ToolRow(kind, onClick = { onOpenTool(kind) }) }
             }

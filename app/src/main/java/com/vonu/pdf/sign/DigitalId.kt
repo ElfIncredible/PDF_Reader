@@ -174,7 +174,7 @@ object DigitalIds {
             context.contentResolver.openInputStream(input)?.use { i -> source.outputStream().use { i.copyTo(it) } }
                 ?: throw ToolException("Couldn't read the PDF")
             PDDocument.load(source, MemoryUsageSetting.setupTempFileOnly()).use { doc ->
-                if (doc.isEncrypted) throw ToolException("Password-protected PDFs can't be signed yet (Phase 6)")
+                if (doc.isEncrypted) throw ToolException("Remove the password first (Tools › Remove a password), then sign")
                 val signature = PDSignature().apply {
                     setFilter(PDSignature.FILTER_ADOBE_PPKLITE)
                     setSubFilter(PDSignature.SUBFILTER_ADBE_PKCS7_DETACHED)

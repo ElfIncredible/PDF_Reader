@@ -37,7 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vonu.pdf.VonuApp
+import com.vonu.pdf.ui.components.BrandLabel
 import com.vonu.pdf.ui.components.DocumentCard
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.vonu.pdf.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,12 +111,7 @@ fun HistoryScreen(onOpenDocument: (Uri) -> Unit, onBack: (() -> Unit)? = null) {
                 }
                 else -> state.groups.forEach { group ->
                     item(key = "header-${group.title}") {
-                        Text(
-                            group.title,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 12.dp, start = 4.dp),
-                        )
+                        BrandLabel(group.title, Modifier.padding(top = 12.dp, start = 4.dp).semantics { heading() })
                     }
                     items(group.documents, key = { it.uri }) { doc ->
                         DocumentCard(
@@ -134,7 +132,7 @@ fun HistoryScreen(onOpenDocument: (Uri) -> Unit, onBack: (() -> Unit)? = null) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text("Clear history?") },
-            text = { Text("Your files aren't deleted. Favourites stay; everything else is removed from this list.") },
+            text = { Text("Your files aren't deleted. Starred files stay; everything else is removed from this list.") },
             confirmButton = {
                 TextButton(onClick = { confirmClear = false; vm.clear() }) { Text("Clear") }
             },

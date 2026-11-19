@@ -58,6 +58,13 @@ android {
             )
         }
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            // Docs screenshots: ./gradlew :app:testDebugUnitTest --tests "*DocScreenshots*"
+            all { it.systemProperty("roborazzi.test.record", "true") }
+        }
+    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -101,4 +108,13 @@ dependencies {
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
     implementation(libs.androidx.profileinstaller)
+
+    // Screenshots of the real screens for the docs, rendered on the JVM (Robolectric + Roborazzi)
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
