@@ -1,0 +1,32 @@
+flowchart TD
+    subgraph UI [UI layer: Jetpack Compose + Material 3]
+        direction LR
+        Nav[AppNavHost<br/>Files, Tools, History tabs] --> Screens[Screens<br/>files, reader, editor, tools, settings]
+    end
+    subgraph VM [State layer]
+        ViewModels[ViewModels<br/>one StateFlow per screen]
+    end
+    subgraph Data [Data layer: AppContainer]
+        direction LR
+        Repos[Repositories<br/>recents, bookmarks,<br/>documents, settings]
+        Room[(Room<br/>recents, bookmarks)]
+        Store[(DataStore<br/>settings)]
+        SAF[Storage Access Framework<br/>only files the user picks]
+    end
+    subgraph Engines [On-device engines]
+        direction LR
+        Renderer[PdfRenderer<br/>page drawing]
+        PdfBox[PdfBox-Android<br/>text, annotations,<br/>forms, security]
+        MLKit[ML Kit<br/>scanner, OCR,<br/>translation]
+        BC[BouncyCastle<br/>digital signatures]
+        TTS[TextToSpeech<br/>Read aloud]
+    end
+    Server[[Optional Vonu server<br/>Office to PDF, PDF/A]]
+
+    UI --> VM
+    VM --> Data
+    VM --> Engines
+    Repos --> Room
+    Repos --> Store
+    Repos --> SAF
+    VM -. only when the server switch is on .-> Server

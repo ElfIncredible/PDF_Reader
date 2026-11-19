@@ -1,16 +1,16 @@
 # Vonu PDF — Documentation
 
-Nov 7, 2026 · @Esther
+Nov 7, 2026 · @Esther · updated Nov 19, 2026
 
 ## Overview
 
-Vonu PDF (version 1.1.1) is an all-in-one PDF reader and editor for Android that anyone can use, and it runs well even on basic 1–2 GB phones. It is the first product in the Vonu family, which will later include Vonu Write, Vonu Post and Vonu Themes.
+Vonu PDF (version 1.1.2) is an all-in-one PDF reader and editor for Android that anyone can use, and it runs well even on basic 1–2 GB phones. It is the first product in the Vonu family, which will later include Vonu Write, Vonu Post and Vonu Themes.
 
 Everything runs on the phone. No account is needed, and documents stay on the device. The one exception is optional Office conversion, which uses your own Vonu server.
 
 | Area          | What you can do                                                                                                                                             |
 |---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Read          | Smooth scrolling or page-by-page, Text view, Sepia and Night colours, search, select and copy text, bookmarks, contents, history and favourites, Read aloud |
+| Read          | Smooth scrolling or page-by-page, Text view, Sepia and Night colours, search, select and copy text, bookmarks, contents, history and starred files, Read aloud |
 | Edit          | Highlight, underline, strike, pen, text, images, shapes, arrows, eraser, undo/redo                                                                          |
 | Sign and fill | Handwritten signatures (draw, type or photo), digital-ID signatures (PAdES), fill PDF forms                                                                 |
 | Scan          | Camera scanner, plain-camera and gallery fallback, black-and-white clean-up, OCR to make scans searchable                                                   |
@@ -18,6 +18,13 @@ Everything runs on the phone. No account is needed, and documents stay on the de
 | Protect       | Add or remove passwords (AES-256), true redaction, remove hidden data, edit document info, PDF/A check                                                      |
 | Advanced      | Compare two versions, batch-process many files, verify signatures, Office to PDF (with the server)                                                          |
 | Coming soon   | AI assistant: summaries, questions about a document, table extraction and translation                                                                       |
+
+<p align="center">
+  <img src="screenshots/01-files.png" alt="Files tab" width="180">
+  <img src="screenshots/02-tools.png" alt="Tools tab" width="180">
+  <img src="screenshots/04-history.png" alt="History tab" width="180">
+  <img src="screenshots/11-files-dark.png" alt="Files tab, dark" width="180">
+</p>
 
 ## Installing and requirements
 
@@ -48,17 +55,39 @@ Vonu PDF needs Android 7.0 (API 24) or newer and installs as one app called **Vo
 
 Build a signed release with **Build → Generate Signed App Bundle / APK**. Upload the App Bundle (.aab) to Google Play; Play delivers a small APK made for each phone. To share directly, build an APK; Vonu makes one per CPU type (arm64-v8a suits almost all modern phones, armeabi-v7a suits older ones).
 
+## Screens and navigation
+
+The app has three bottom tabs. Every other screen opens on top of them without the tab bar, and Back returns to where you were. A short landing screen (mark and wordmark) shows on a cold start only; "Open with Vonu PDF" from another app skips it and goes straight to the reader.
+
+| Screen            | Route                              | Reached from                                                          |
+|-------------------|------------------------------------|-----------------------------------------------------------------------|
+| Files (tab)       | `home`                             | Start destination                                                     |
+| Tools (tab)       | `tools`                            | Tab bar                                                               |
+| History (tab)     | `history`                          | Tab bar                                                               |
+| Folder browser    | `browser`                          | Files → Browse folders                                                |
+| Settings          | `settings`                         | Files → ⚙                                                             |
+| Tool screen       | `tool/{kind}?uri={uri}`            | Tools tab, or the reader's ⋮ menu (with the open file)                |
+| Reader and editor | `viewer?uri={uri}&action={action}` | Any file; `action=sign` opens straight into the editor's signatures |
+
+![How the screens connect](flowcharts/1-navigation.png)
+
+| Landing | Files | Tools | Merge (a tool) | History | Settings |
+|---|---|---|---|---|---|
+| ![Landing](screenshots/00-landing.png) | ![Files](screenshots/01-files.png) | ![Tools](screenshots/02-tools.png) | ![Merge](screenshots/03-tool-merge.png) | ![History](screenshots/04-history.png) | ![Settings](screenshots/05-settings.png) |
+
 ## User guide: reading
 
-Open a PDF from the home screen, from **Browse**, or by tapping a PDF in any other app (Files, WhatsApp, email) and choosing Vonu PDF.
+Open a PDF from **Files → Open a PDF**, from **Files → Browse folders**, or by tapping a PDF in any other app (Files, WhatsApp, email) and choosing Vonu PDF.
 
-**Home screen**
+**Files tab**
 
-- **Open file** and **Browse** (pick a folder once and Vonu lists its PDFs).
+- **Open a PDF** (Android's file picker) and **Browse folders** (pick a folder once and Vonu lists its PDFs).
 
-- Quick tiles: **Sign**, **Scan**, **AI** (marked *Soon*) and **All tools**.
+- **Continue reading** jumps back to the last page you were on. Below it, recent files show where you are (or how many pages), the size and when you opened them; a progress bar appears once you've started reading.
 
-- **Continue reading** jumps back to the last page you were on. **History** lists everything you opened, grouped by day and searchable. Tap ☆ to make a file a favourite.
+- Tap ☆ to **star** a file; the **Starred** filter shows only starred files. The **History** tab lists everything you opened, grouped by day and searchable.
+
+![Opening a document](flowcharts/2-open-document.png)
 
 **In the reader**
 
@@ -119,9 +148,11 @@ Tap ✏️ in the reader to open the editor, pick a tool from the bar at the bot
 
 - Tools from the reader's ⋮ menu work on the saved file, so save your edits before using one.
 
+![Editing and saving](flowcharts/3-edit-save.png)
+
 ## User guide: signing, forms and scanning
 
-**Handwritten signatures** (Home → Sign, or ✏️ → Sign)
+**Handwritten signatures** (Tools → Sign a PDF, or ✏️ → Sign)
 
 1.  Create a signature once: **Draw** it with your finger, **Type** your name in a script style, or take a **Photo** of it on paper. With a photo, Vonu removes the paper and keeps the ink.
 
@@ -129,7 +160,7 @@ Tap ✏️ in the reader to open the editor, pick a tool from the bar at the bot
 
 3.  Tap one to place it, drag and resize it, then tap 💾 Save.
 
-**Digital-ID signatures** (⋮ → Sign with digital ID)
+**Digital-ID signatures** (Tools → Sign with digital ID, or ⋮ in the reader)
 
 A digital signature proves who signed and shows if the file changed afterwards.
 
@@ -143,7 +174,7 @@ A digital signature proves who signed and shows if the file changed afterwards.
 
 Every field appears as a simple input (text, check box, choice, drop-down), grouped by page. Then choose **Save**, **Save as a copy**, or **Save a final copy**. A final copy is flattened: the answers become part of the page and show in every app, but can no longer be changed.
 
-**Scan documents** (Home → Scan)
+**Scan documents** (Tools → Scan documents)
 
 1.  **Start scanning** opens Google's scanner, which finds the edges, straightens and cleans each page.
 
@@ -161,7 +192,9 @@ OCR adds an invisible text layer to scanned pages, so search, selection and copy
 
 ## Tools reference
 
-All tools are under Home → **All tools**; the most useful ones are also in the reader's ⋮ menu. Every tool saves a new file and leaves the original untouched, except Organize and Fill a form, which offer to save over it.
+All tools are on the **Tools** tab, grouped as Sign & fill, Pages, Scan & convert, Protect and More; the most useful ones are also in the reader's ⋮ menu (for a locked file, only Remove a password). Every tool saves a new file and leaves the original untouched, except Organize and Fill a form, which offer to save over it. When a tool finishes, **Open** shows the result in the reader.
+
+![How a tool runs](flowcharts/4-tools.png)
 
 | Tool                          | What it does                                             | Notes                                                                                            |
 |-------------------------------|----------------------------------------------------------|--------------------------------------------------------------------------------------------------|
@@ -188,7 +221,7 @@ All tools are under Home → **All tools**; the most useful ones are also in the
 
 ## Settings, Lite mode, privacy and security
 
-**Settings** (Home → ⚙)
+**Settings** (Files → ⚙)
 
 | Setting     | Options                                                                                    |
 |-------------|--------------------------------------------------------------------------------------------|
@@ -196,7 +229,7 @@ All tools are under Home → **All tools**; the most useful ones are also in the
 | Reading     | Keep screen on                                                                             |
 | Performance | Lite mode: Automatic, Always on or Off. The screen says whether this phone counts as basic |
 | Vonu server | Address, token, Test connection, and a switch that must be on before any document is sent  |
-| Privacy     | Clear recent history (favourites are kept); Forget browse folder                           |
+| Privacy     | Clear recent history (starred files are kept); Forget browse folder                           |
 
 **Lite mode**
 
@@ -230,11 +263,9 @@ Automatic is the default. It turns on when Android reports a low-RAM phone, the 
 
 Vonu PDF is a native Kotlin app built with Jetpack Compose using MVVM: each screen watches one StateFlow from its ViewModel, and all PDF work runs on the phone.
 
-![App architecture: 4 layers](architecture.png)
+![App architecture](flowcharts/5-architecture.png)
 
-app architecture · 4 layers
-
-The dashed box is the only part that leaves the phone, and only when the server switch in Settings is on.
+The dotted line is the only path that leaves the phone, and only when the server switch in Settings is on.
 
 **Tech stack**
 
@@ -269,11 +300,46 @@ The dashed box is the only part that leaves the phone, and only when the server 
 
 **Feature switches**
 
-util/Features.kt holds features that are built but not shipped. AI_ASSISTANT = false hides the assistant from the reader menu and shows it as *Soon* on Home and under *Coming soon* in Tools. Set it to true to release it.
+util/Features.kt holds features that are built but not shipped. AI_ASSISTANT = false hides the assistant from the Tools tab and the reader menu (ToolKind.available filters it out, and an old link to it just goes back). Set it to true to release it.
+
+**UI design system**
+
+The theme lives in ui/theme/Theme.kt; brand pieces (VonuBrandTitle, BrandLabel, VonuLanding) in ui/components/VonuBrand.kt.
+
+| Token                | Light                | Dark (Reef Night) | Used for                                   |
+|----------------------|----------------------|-------------------|--------------------------------------------|
+| primary              | #C2412D (PDF red)    | #FFB4A5           | Main buttons, progress, selected radio     |
+| secondary / tertiary | #0B4F5C (Lagoon ink) | #7FD6CF           | Wordmark, stars, selected chips and tabs   |
+| background / surface | #F3EEE4              | #0D1B2A           | Screen ground                              |
+| surfaceContainerLow  | #F8F4EC              | #122233           | Cards                                      |
+| onSurfaceVariant     | #4E5E61              | #A9B8BF           | Secondary text (at least 4.5:1 on ground)  |
+
+- Wordmark: Outfit Bold, lowercase "vonu". Everything else uses the Material 3 type scale.
+
+- Section labels (Tools groups, History days, Settings sections, "Continue reading") use BrandLabel: 12 sp monospace, upper case, marked as headings for TalkBack.
+
+- One word for favourites in the UI: **Star / Starred**.
+
+- User-facing messages never mention build phases; when something is missing, they point to the tool that fixes it.
+
+- Wallpaper colours (dynamic colour) are opt-in on Android 12+.
+
+**UI/UX review (Nov 19, 2026)**
+
+A review against the ui-ux-pro-max checklist (accessibility, touch targets, consistency, copy) found and fixed:
+
+| Finding                                                                          | Fix                                                                               |
+|----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
+| Messages said "OCR arrives in Phase 5", "Phase 6", "Phase 7" though these ship    | Point to Tools → Make PDF searchable, Remove a password, or the Office tool       |
+| "Starred" chip, but "favourites" in buttons, menus, toasts and dialogs           | Star / Starred everywhere                                                         |
+| Brand labels at 10 sp, below the 12 sp minimum                                   | 12 sp; Settings and History headers use the same label as Tools                   |
+| Recent cards said "0 min. ago" and the line was cut off                          | "Just now"; page count until reading starts                                       |
+| Every new file showed an almost empty progress bar                               | Bar only once reading has started                                                 |
+| Section headers not announced as headings                                        | heading() semantics on Tools, History and Settings sections                       |
 
 **Build and release**
 
-1.  Raise versionCode and versionName in app/build.gradle.kts (now 9 and 1.1.1).
+1.  Raise versionCode and versionName in app/build.gradle.kts (now 10 and 1.1.2).
 
 2.  **Build → Generate Signed App Bundle / APK**, and create a keystore the first time. Keep the keystore and its passwords safe: Play updates need the same key.
 
@@ -353,6 +419,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 - StrictMode in debug builds flags files left open and network calls on the main thread.
 
+**Documentation screenshots**
+
+The screenshots in this document and the README are rendered from the real app, not mock-ups, by a JVM test, so no phone or emulator is needed.
+
+![Screenshot pipeline](flowcharts/6-screenshots.png)
+
+1.  Run `./gradlew :app:testDebugUnitTest --tests "*DocScreenshots*"`.
+
+2.  app/src/test/java/com/vonu/pdf/DocScreenshots.kt starts MainActivity under Robolectric (native graphics, a 393×852 dp phone), seeds four sample recent files, taps through the tabs and captures each screen with Roborazzi.
+
+3.  The PNGs land in docs/screenshots/. Commit them with the UI change.
+
+The reader itself can't be captured this way, because PdfRenderer has no JVM implementation. The flowcharts are Mermaid files in docs/flowcharts/ (*.mmd); re-render one with `npx @mermaid-js/mermaid-cli -i 1-navigation.mmd -o 1-navigation.png -c config.json -b "#F3EEE4" -s 2`.
+
 **Test checklist before a release**
 
 - [ ] Only one app icon, "Vonu PDF", appears after installing
@@ -381,7 +461,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 - [ ] Settings → Performance says the right thing on an older phone
 
-- [ ] Home shows AI with a *Soon* badge; the reader menu has no AI item
+- [ ] Neither the Tools tab nor the reader menu shows the AI assistant
+
+- [ ] Files, Tools and History keep their scroll position when you switch tabs
+
+- [ ] TalkBack reads section labels as headings and every icon button by name
 
 - [ ] Install on Android 7 (API 24)
 
@@ -415,6 +499,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 | Version       | Date       | Changes                                                                                                                |
 |---------------|------------|------------------------------------------------------------------------------------------------------------------------|
+| Unreleased    | 19 Nov 2026 | UI/UX review fixes (see Developer guide); screenshots and flowcharts in the docs                                       |
+| 1.1.2         | Nov 2026   | Vonu identity, Files / Tools / History tabs, landing screen, V logo app icon                                           |
 | 1.1.1         | 7 Nov 2026 | Renamed to Vonu PDF with a new logo; one app only (LeakCanary removed); AI assistant marked as coming soon             |
 | 1.1.0         | 6 Nov 2026 | Lite mode; Android 7.0+; smaller download; Read aloud; Text view; scanning without Play scanner; black-and-white scans |
 | 1.0 (phase 7) | Nov 2026   | Vonu server, AI assistant (now held back), translation, Office and PDF/A conversion, performance work                  |

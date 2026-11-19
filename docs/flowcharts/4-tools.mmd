@@ -1,0 +1,12 @@
+flowchart TD
+    A([Tools tab, or the reader's more menu]) --> B[Pick a tool]
+    B --> C{Which kind?}
+    C -->|Sign a PDF| S[Pick the PDF] --> S2[Opens in the editor<br/>with signatures ready]
+    C -->|Fill a form| F[Fill the fields] --> F3[Save, Save as a copy,<br/>or Save a final flattened copy]
+    C -->|Organize pages| O[Rotate, reorder, extract, delete] --> O2[Save over the original or as a copy]
+    C -->|Every other tool| T[Add the input files] --> T2[Set the options] --> T3[Run] --> T4[Choose where to save]
+    T4 --> T5[New file, original untouched;<br/>tap Open to read it]
+    S2 --> R([Result opens in the reader])
+    F3 --> R
+    O2 --> R
+    T5 --> R

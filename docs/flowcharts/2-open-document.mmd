@@ -1,0 +1,16 @@
+flowchart TD
+    A([Choose a PDF]) --> B{Password<br/>protected?}
+    B -->|Yes| C[Enter password]
+    C -->|Wrong| C
+    C -->|Right| D[Read-only:<br/>editing off until password removed]
+    B -->|No| E[Record in Recents and History]
+    D --> E
+    E --> F{Read before?}
+    F -->|Yes| G[Jump to the last page read]
+    F -->|No| H[Start at page 1]
+    G --> I[Read: scroll, zoom, search, bookmark]
+    H --> I
+    I --> J{Scanned or a form?}
+    J -->|Scanned| K[Banner: make it searchable with OCR]
+    J -->|Form| L[Banner: fill it in]
+    J -->|Neither| M([Keep reading])

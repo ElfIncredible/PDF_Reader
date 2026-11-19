@@ -1,0 +1,21 @@
+flowchart TD
+    Launch([Tap the Vonu PDF icon]) --> Landing[Landing screen<br/>cold start only]
+    Landing --> Files
+    OpenWith([Open with Vonu PDF<br/>from another app]) --> Viewer
+
+    subgraph Tabs [Bottom tabs]
+        Files[Files tab]
+        Tools[Tools tab]
+        History[History tab]
+    end
+
+    Files -->|Open a PDF| Picker[Android file picker] --> Viewer
+    Files -->|Browse folders| Browser[Folder browser] --> Viewer
+    Files -->|Continue reading / a recent file| Viewer
+    Files -->|gear icon| Settings[Settings]
+    History -->|tap a file| Viewer
+    Tools -->|pick a tool| ToolScreen[Tool screen]
+
+    Viewer[Reader] -->|pencil icon| Editor[Editor]
+    Editor -->|Save| Viewer
+    Viewer <-->|more menu: a tool / Open the result| ToolScreen

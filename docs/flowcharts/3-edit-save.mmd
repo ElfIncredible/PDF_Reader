@@ -1,0 +1,16 @@
+flowchart TD
+    A([Reader]) -->|pencil icon| B[Editor]
+    B --> C[Pick a tool: highlight, pen, text,<br/>image, shape, signature, eraser]
+    C --> D[Mark up the page<br/>undo and redo up to 100 steps]
+    D --> E{Save or leave?}
+    E -->|Save| F{Can the original<br/>file be changed?}
+    F -->|Yes| G[Write into the original]
+    F -->|No, e.g. from email| H[Choose where to save a copy]
+    E -->|Save as a copy| H
+    H --> I[Open the new copy]
+    E -->|Back with unsaved changes| J{Unsaved changes dialog}
+    J -->|Save| F
+    J -->|Discard| K([Leave without saving])
+    J -->|Cancel| D
+    G --> L([Back in the reader])
+    I --> L

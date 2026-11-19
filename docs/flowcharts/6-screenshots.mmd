@@ -1,0 +1,5 @@
+flowchart LR
+    A[DocScreenshots test<br/>app/src/test] -->|seeds sample recents| B[Real MainActivity<br/>in Robolectric]
+    B -->|native graphics| C[Roborazzi capture]
+    C --> D[docs/screenshots/*.png]
+    D --> E[README and DOCUMENTATION]
