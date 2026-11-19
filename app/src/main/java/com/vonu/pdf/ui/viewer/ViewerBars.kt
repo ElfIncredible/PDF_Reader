@@ -40,7 +40,6 @@ import androidx.compose.material.icons.outlined.ZoomOut
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,7 +76,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.vonu.pdf.ui.tools.ToolKind
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,8 +101,6 @@ fun ReaderTopBar(
     onGoToPage: () -> Unit,
     onToggleFavourite: () -> Unit,
     onShare: () -> Unit,
-    tools: List<ToolKind>,
-    onTool: (ToolKind) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     TopAppBar(
@@ -161,14 +157,6 @@ fun ReaderTopBar(
                         leadingIcon = { Icon(Icons.Outlined.Share, null) },
                         onClick = { menu = false; onShare() },
                     )
-                    HorizontalDivider()
-                    tools.forEach { kind ->
-                        DropdownMenuItem(
-                            text = { Text(kind.title) },
-                            leadingIcon = { Icon(kind.icon, null) },
-                            onClick = { menu = false; onTool(kind) },
-                        )
-                    }
                 }
             }
         },

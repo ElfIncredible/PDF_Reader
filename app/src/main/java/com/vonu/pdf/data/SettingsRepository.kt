@@ -35,6 +35,8 @@ data class AppSettings(
     val reflowScale: Float = 1f,
     /** Folder the user granted for the Browse tab (a SAF tree URI). */
     val libraryTreeUri: String? = null,
+    /** How often each tool was opened on this phone (ToolKind id to count); ranks the reader's tool strip. */
+    val toolUses: Map<String, Int> = emptyMap(),
 )
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -53,6 +55,7 @@ class SettingsRepository(private val context: Context) {
         val SERVER_CONSENT = booleanPreferencesKey("server_consent")
         val LITE_MODE = stringPreferencesKey("lite_mode")
         val REFLOW_SCALE = androidx.datastore.preferences.core.floatPreferencesKey("reflow_scale")
+        val TOOL_USES = stringPreferencesKey("tool_uses")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data
@@ -72,6 +75,7 @@ class SettingsRepository(private val context: Context) {
                     ?.let { runCatching { com.vonu.pdf.util.LiteMode.valueOf(it) }.getOrNull() }
                     ?: com.vonu.pdf.util.LiteMode.AUTO,
                 reflowScale = p[Keys.REFLOW_SCALE] ?: 1f,
+                toolUses = decodeUses(p[Keys.TOOL_USES]),
                 scrollMode = p[Keys.SCROLL_MODE]
                     ?.let { runCatching { ScrollMode.valueOf(it) }.getOrNull() }
                     ?: ScrollMode.VERTICAL,
@@ -120,9 +124,26 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.SERVER_CONSENT] = allowed }
     }
 
+    /** Counts one use of a tool, for the "most used" tools in the reader. */
+    suspend fun recordToolUse(toolId: String) {
+        context.dataStore.edit {
+            val uses = decodeUses(it[Keys.TOOL_USES]).toMutableMap()
+            uses[toolId] = (uses[toolId] ?: 0) + 1
+            it[Keys.TOOL_USES] = uses.entries.joinToString(";") { (id, n) -> "$id=$n" }
+        }
+    }
+
     suspend fun setLibraryTreeUri(uri: String?) {
         context.dataStore.edit {
             if (uri == null) it.remove(Keys.LIBRARY_TREE) else it[Keys.LIBRARY_TREE] = uri
         }
     }
 }
+
+/** "sign=4;compress=2" to a map; anything malformed is skipped. */
+private fun decodeUses(raw: String?): Map<String, Int> =
+    raw.orEmpty().split(';').mapNotNull { part ->
+        val id = part.substringBefore('=', "")
+        val n = part.substringAfter('=', "").toIntOrNull()
+        if (id.isNotEmpty() && n != null && n > 0) id to n else null
+    }.toMap()

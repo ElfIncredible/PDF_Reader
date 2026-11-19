@@ -113,6 +113,7 @@ data class ReaderPrefs(
     val colorMode: ColorMode = ColorMode.NORMAL,
     val keepScreenOn: Boolean = false,
     val reflowScale: Float = 1f,
+    val toolUses: Map<String, Int> = emptyMap(),
 )
 
 class ViewerViewModel(
@@ -149,7 +150,7 @@ class ViewerViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val prefs: StateFlow<ReaderPrefs> = container.settings.settings
-        .map { ReaderPrefs(it.scrollMode, it.colorMode, it.keepScreenOn, it.reflowScale) }
+        .map { ReaderPrefs(it.scrollMode, it.colorMode, it.keepScreenOn, it.reflowScale, it.toolUses) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, ReaderPrefs())
 
     private val query = MutableStateFlow("")
@@ -378,6 +379,10 @@ class ViewerViewModel(
     fun setKeepScreenOn(on: Boolean) = viewModelScope.launch { container.settings.setKeepScreenOn(on) }
 
     fun setReflowScale(scale: Float) = viewModelScope.launch { container.settings.setReflowScale(scale) }
+
+    /** NonCancellable: opening some tools closes this reader, and the count must still be written. */
+    fun recordToolUse(kind: com.vonu.pdf.ui.tools.ToolKind) =
+        viewModelScope.launch(kotlinx.coroutines.NonCancellable) { container.settings.recordToolUse(kind.id) }
 
     // ---- Read aloud ------------------------------------------------------------------
 

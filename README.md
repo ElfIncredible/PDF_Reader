@@ -89,6 +89,15 @@ Under **Recent**, the file you were reading last appears as **Continue reading**
 | Bookmark a page | The bookmark icon at the top |
 | Contents, bookmarks, thumbnails | ☰ opens a sheet with three tabs |
 | Share | ⋮ → **Share PDF** |
+| Use a tool (sign, compress, pages...) | The tool strip at the bottom of the page; **More** for the rest |
+
+**Tools in the reader.** A strip of tools sits at the bottom of every open PDF, so you never have to hunt for them. It shows four tools: first what this file needs (**Fill form** for a form, **Make searchable** for a scan), then the tools you use most on this phone, so it learns your habits. **More** lists the rest. A password-protected file shows **Unlock**. Tap the page to hide the strip for full-screen reading.
+
+<p align="center">
+  <img src="docs/screenshots/06-reader-tools.png" alt="Tool strip in the reader" width="220">
+  <img src="docs/screenshots/07-reader-more-tools.png" alt="More tools" width="220">
+</p>
+
 
 **Reading mode** (⋮ → Reading mode)
 - **Scroll**: pages one under another.
@@ -120,7 +129,7 @@ To edit, tap ✏️ in the reader, pick a tool from the bottom bar, then tap �
 - **Save** writes into the original file. **Save as a copy…** makes a new PDF and opens it.
 - If Vonu can't change the original (for example, a file opened from an email), it asks where to save a copy.
 - If you leave with unsaved changes, Vonu asks first, so nothing is lost by accident.
-- Tools in the reader's ⋮ menu work on the saved file, so save your edits before you use one.
+- Tools on the reader's tool strip work on the saved file, so save your edits before you use one.
 
 ![Editing and saving](docs/flowcharts/3-edit-save.png)
 
@@ -131,7 +140,7 @@ To edit, tap ✏️ in the reader, pick a tool from the bottom bar, then tap �
 2. Your saved signatures and initials stay on the phone.
 3. Tap a signature to place it, drag and resize it, then tap 💾 **Save**.
 
-**Digital-ID signature** (Tools → **Sign with digital ID**, or ⋮ in the reader). A digital signature proves who signed, and it shows if the file was changed afterwards.
+**Digital-ID signature** (Tools → **Sign with digital ID**, or the reader's tool strip → **More**). A digital signature proves who signed, and it shows if the file was changed afterwards.
 - **Create** a personal ID, or **import** a `.p12` / `.pfx` file from your employer, a government or a certificate authority.
 - Vonu signs to the PAdES standard into a new copy. It never stores your ID's password.
 - The same screen also checks existing signatures. It shows whether each one is intact, whether the file was changed after signing, and who issued the certificate.
@@ -157,7 +166,7 @@ To make a PDF you already have searchable, use Tools → **Make PDF searchable**
 
 ### All tools
 
-All tools are on the **Tools** tab, and the most-used ones are also in the reader's ⋮ menu. Every tool saves a **new file** and leaves your original untouched. The exceptions are Organize pages and Fill a form, which offer to save over the original. When a tool finishes, tap **Open** to read the result.
+All tools are on the **Tools** tab, and the reader's tool strip shows the ones you use most. Every tool saves a **new file** and leaves your original untouched. The exceptions are Organize pages and Fill a form, which offer to save over the original. When a tool finishes, tap **Open** to read the result.
 
 <p align="center">
   <img src="docs/screenshots/02-tools.png" alt="Tools tab" width="220">
@@ -251,7 +260,7 @@ From the command line, `./gradlew assembleDebug` builds `app/build/outputs/apk/d
 
 | Version | Changes |
 |---|---|
-| Unreleased | UI/UX review: clearer recent-file details, one "Star" wording, bigger section labels, no developer jargon in messages; screenshots and flowcharts in the docs |
+| Unreleased | Tool strip in the reader: your four most-used tools (plus what the file needs) always visible, the rest under More. UI/UX review: clearer recent-file details, one "Star" wording, bigger section labels, no developer jargon in messages; screenshots and flowcharts in the docs |
 | 1.1.2 | New Vonu blue, and the V logo as the app icon and inside the app |
 | 1.1.1 | Renamed to Vonu PDF with a new logo; a single app (the debug "Leaks" app is gone); AI assistant marked as coming soon |
 | 1.1.0 | Lite mode, Android 7.0+, smaller download, Read aloud, Text view, scanning without the Play scanner, black-and-white scans |

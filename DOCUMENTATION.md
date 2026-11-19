@@ -66,7 +66,7 @@ The app has three bottom tabs. Every other screen opens on top of them without t
 | History (tab)     | `history`                          | Tab bar                                                               |
 | Folder browser    | `browser`                          | Files → Browse folders                                                |
 | Settings          | `settings`                         | Files → ⚙                                                             |
-| Tool screen       | `tool/{kind}?uri={uri}`            | Tools tab, or the reader's ⋮ menu (with the open file)                |
+| Tool screen       | `tool/{kind}?uri={uri}`            | Tools tab, or the reader's tool strip (with the open file)            |
 | Reader and editor | `viewer?uri={uri}&action={action}` | Any file; `action=sign` opens straight into the editor's signatures |
 
 ![How the screens connect](docs/flowcharts/1-navigation.png)
@@ -101,6 +101,16 @@ Open a PDF from **Files → Open a PDF**, from **Files → Browse folders**, or 
 | Bookmark a page                 | The bookmark icon at the top                                                            |
 | Contents, bookmarks, thumbnails | ☰ opens a sheet with three tabs                                                         |
 | Share                           | ⋮ → Share PDF                                                                           |
+| Use a tool                      | The tool strip at the bottom; **More** for the rest                                     |
+
+**Tools in the reader**
+
+A tool strip sits above the page bar on every open PDF. It shows four tools, then **More** for the rest, so nobody has to guess that tools hide behind ⋮. The order is: what this file needs (**Fill form** for a form, **Make searchable** for a scan), then the tools used most on this phone, then Sign, Pages, Compress, Make searchable. A password-protected file shows only **Unlock**. **Sign** opens the editor with your signatures ready; every other tool opens its tool screen with this file. The strip hides with the rest of the chrome when you tap the page.
+
+| Tool strip | More |
+|---|---|
+| ![Tool strip](docs/screenshots/06-reader-tools.png) | ![More tools](docs/screenshots/07-reader-more-tools.png) |
+
 
 **Reading mode** (⋮ → Reading mode)
 
@@ -146,7 +156,7 @@ Tap ✏️ in the reader to open the editor, pick a tool from the bar at the bot
 
 - Leaving with unsaved changes asks first, so nothing is lost by accident.
 
-- Tools from the reader's ⋮ menu work on the saved file, so save your edits before using one.
+- Tools from the reader's tool strip work on the saved file, so save your edits before using one.
 
 ![Editing and saving](docs/flowcharts/3-edit-save.png)
 
@@ -160,7 +170,7 @@ Tap ✏️ in the reader to open the editor, pick a tool from the bar at the bot
 
 3.  Tap one to place it, drag and resize it, then tap 💾 Save.
 
-**Digital-ID signatures** (Tools → Sign with digital ID, or ⋮ in the reader)
+**Digital-ID signatures** (Tools → Sign with digital ID, or the reader's tool strip → More)
 
 A digital signature proves who signed and shows if the file changed afterwards.
 
@@ -192,7 +202,7 @@ OCR adds an invisible text layer to scanned pages, so search, selection and copy
 
 ## Tools reference
 
-All tools are on the **Tools** tab, grouped as Sign & fill, Pages, Scan & convert, Protect and More; the most useful ones are also in the reader's ⋮ menu (for a locked file, only Remove a password). Every tool saves a new file and leaves the original untouched, except Organize and Fill a form, which offer to save over it. When a tool finishes, **Open** shows the result in the reader.
+All tools are on the **Tools** tab, grouped as Sign & fill, Pages, Scan & convert, Protect and More; the reader's tool strip shows the four that matter most for the file and the phone, with the rest under More (for a locked file, only Unlock). Every tool saves a new file and leaves the original untouched, except Organize and Fill a form, which offer to save over it. When a tool finishes, **Open** shows the result in the reader.
 
 ![How a tool runs](docs/flowcharts/4-tools.png)
 
@@ -301,6 +311,10 @@ The dotted line is the only path that leaves the phone, and only when the server
 **Feature switches**
 
 util/Features.kt holds features that are built but not shipped. AI_ASSISTANT = false hides the assistant from the Tools tab and the reader menu (ToolKind.available filters it out, and an old link to it just goes back). Set it to true to release it.
+
+**Reader tool strip**
+
+ui/viewer/ReaderTools.kt holds it. `rankReaderTools(locked, hasForm, isScan, uses)` is a pure function (unit-tested in ReaderToolsTest): a locked file gets only Unlock; otherwise the tools the file needs come first, then the reader tools sorted by use count, with ties kept in the default order. `READER_STRIP_SIZE` (4) tools show; the rest go to `ReaderToolsSheet`. Use counts live in DataStore (`tool_uses`, stored as `sign=6;compress=3`) and are written by `SettingsRepository.recordToolUse` whenever the reader opens a tool. The write uses NonCancellable because Organize and Fill a form close the reader as they open. Counts never leave the phone. The ⋮ menu now holds only reading actions: Read aloud, Reading mode, Go to page, Star and Share.
 
 **UI design system**
 
@@ -461,7 +475,11 @@ The reader itself can't be captured this way, because PdfRenderer has no JVM imp
 
 - [ ] Settings → Performance says the right thing on an older phone
 
-- [ ] Neither the Tools tab nor the reader menu shows the AI assistant
+- [ ] Neither the Tools tab nor the reader's tool strip shows the AI assistant
+
+- [ ] Open a form PDF: Fill form is first on the tool strip. Use Compress three times: it moves into the strip
+
+- [ ] A password-protected PDF shows only Unlock on the tool strip
 
 - [ ] Files, Tools and History keep their scroll position when you switch tabs
 
@@ -499,7 +517,7 @@ The reader itself can't be captured this way, because PdfRenderer has no JVM imp
 
 | Version       | Date       | Changes                                                                                                                |
 |---------------|------------|------------------------------------------------------------------------------------------------------------------------|
-| Unreleased    | 19 Nov 2026 | UI/UX review fixes (see Developer guide); screenshots and flowcharts in the docs                                       |
+| Unreleased    | 19 Nov 2026 | Reader tool strip (most-used tools always visible, the rest under More); UI/UX review fixes; screenshots and flowcharts |
 | 1.1.2         | Nov 2026   | Vonu identity, Files / Tools / History tabs, landing screen, V logo app icon                                           |
 | 1.1.1         | 7 Nov 2026 | Renamed to Vonu PDF with a new logo; one app only (LeakCanary removed); AI assistant marked as coming soon             |
 | 1.1.0         | 6 Nov 2026 | Lite mode; Android 7.0+; smaller download; Read aloud; Text view; scanning without Play scanner; black-and-white scans |

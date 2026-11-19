@@ -46,6 +46,31 @@ enum class ToolKind(val id: String, val title: String, val description: String, 
     TEXT_TO_PDF("text-to-pdf", "Text to PDF", "Convert a .txt file into a PDF", Icons.Outlined.Description),
     ;
 
+    /** A one- or two-word name for the reader's tool strip, where space is tight. */
+    val shortTitle: String
+        get() = when (this) {
+            ASSISTANT -> "Ask AI"
+            CONVERT_OFFICE -> "Office"
+            SIGN -> "Sign"
+            FILL_FORM -> "Fill form"
+            SCAN -> "Scan"
+            OCR -> "Make searchable"
+            DIGITAL_SIGN -> "Digital ID"
+            PROTECT -> "Password"
+            UNLOCK -> "Unlock"
+            REDACT -> "Redact"
+            COMPARE -> "Compare"
+            BATCH -> "Batch"
+            METADATA -> "Doc info"
+            MERGE -> "Merge"
+            SPLIT -> "Split"
+            ORGANIZE -> "Pages"
+            COMPRESS -> "Compress"
+            IMAGES_TO_PDF -> "Images"
+            PDF_TO_IMAGES -> "To images"
+            TEXT_TO_PDF -> "Text"
+        }
+
     /** The job this tool belongs to on the Tools tab. */
     val group: ToolGroup
         get() = when (this) {

@@ -1,5 +1,7 @@
 package com.vonu.pdf.ui.viewer
 
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -168,6 +170,11 @@ private fun PdfReader(
     var actionDone by rememberSaveable { mutableStateOf(false) }
     var signOnOpen by rememberSaveable { mutableStateOf(false) }
     var bannerDismissed by rememberSaveable { mutableStateOf(false) }
+    var showTools by remember { mutableStateOf(false) }
+
+    // The reader's tools, best first for this file and this phone (see rankReaderTools).
+    val scanned = index.finished && !index.failed && !index.hasText
+    val readerTools = rankReaderTools(state.locked, formFields > 0, scanned, prefs.toolUses)
 
     // Opened via "Sign a PDF": go straight to the editor with signatures showing.
     LaunchedEffect(annotationsReady) {
@@ -191,6 +198,28 @@ private fun PdfReader(
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
             snackbar.showSnackbar(message)
+        }
+    }
+
+    fun useTool(kind: ToolKind) {
+        showTools = false
+        when {
+            // Handwritten signing happens right here, in the editor.
+            kind == ToolKind.SIGN ->
+                if (annotationsReady) {
+                    vm.recordToolUse(kind)
+                    selection = null
+                    signOnOpen = true
+                    editing = true
+                } else {
+                    toast("Getting the editor ready, try again in a moment")
+                }
+            // Other tools work on the saved file, so unsaved annotations must be saved first.
+            editor.dirty -> toast("Save your edits first (✏️ → 💾), then use ${kind.title}")
+            else -> {
+                vm.recordToolUse(kind)
+                onOpenTool(kind, uri)
+            }
         }
     }
 
@@ -386,7 +415,7 @@ private fun PdfReader(
                         onSearch = { searching = true },
                         onEdit = {
                             if (state.locked) {
-                                toast("This PDF is password-protected. Remove the password first (⋮ → Remove a password) to edit it")
+                                toast("This PDF is password-protected. Tap Unlock below to remove the password, then edit it")
                             } else if (annotationsReady) {
                                 selection = null
                                 editing = true
@@ -409,28 +438,14 @@ private fun PdfReader(
                             toast(if (isFavourite) "Unstarred" else "Starred")
                         },
                         onShare = { sharePdf(context, uri, state.title) },
-                        tools = if (state.locked) listOf(ToolKind.UNLOCK) else listOf(
-                            ToolKind.ASSISTANT, ToolKind.FILL_FORM, ToolKind.DIGITAL_SIGN, ToolKind.OCR, ToolKind.REDACT,
-                            ToolKind.PROTECT, ToolKind.METADATA, ToolKind.ORGANIZE, ToolKind.COMPRESS,
-                            ToolKind.SPLIT, ToolKind.PDF_TO_IMAGES,
-                        ).filterNot { it.comingSoon },
-                        onTool = { kind ->
-                            // Tools work on the saved file, so unsaved annotations must be saved first.
-                            if (editor.dirty) toast("Save your edits first (✏️ → 💾), then use ${kind.title}")
-                            else onOpenTool(kind, uri)
-                        },
                     )
                         // Helpful nudges for scanned PDFs and forms.
-                        val scanned = index.finished && !index.failed && !index.hasText
                         if (!bannerDismissed && (scanned || formFields > 0)) {
                             ReaderBanner(
                                 text = if (formFields > 0) "This PDF has a form with $formFields fields."
                                 else "This looks like a scan, so its text can't be searched yet.",
                                 action = if (formFields > 0) "Fill it in" else "Make searchable",
-                                onAction = {
-                                    val kind = if (formFields > 0) ToolKind.FILL_FORM else ToolKind.OCR
-                                    if (editor.dirty) toast("Save your edits first (✏️ → 💾)") else onOpenTool(kind, uri)
-                                },
+                                onAction = { useTool(if (formFields > 0) ToolKind.FILL_FORM else ToolKind.OCR) },
                                 onDismiss = { bannerDismissed = true },
                             )
                         }
@@ -456,13 +471,20 @@ private fun PdfReader(
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            PageBar(
-                current = page,
-                count = doc.pageCount,
-                onSeek = { jumpTo(it) },
-                onTapIndicator = { showGoTo = true },
-                zoom = if (prefs.scrollMode == ScrollMode.VERTICAL) zoom else null,
-            )
+            Column {
+                // Tools in plain sight: the most used ones for this phone, the rest under More.
+                Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)) {
+                    ReaderToolStrip(readerTools, onTool = ::useTool, onMore = { showTools = true })
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                PageBar(
+                    current = page,
+                    count = doc.pageCount,
+                    onSeek = { jumpTo(it) },
+                    onTapIndicator = { showGoTo = true },
+                    zoom = if (prefs.scrollMode == ScrollMode.VERTICAL) zoom else null,
+                )
+            }
         }
         AnimatedVisibility(
             visible = !chromeVisible && selection == null,
@@ -475,11 +497,16 @@ private fun PdfReader(
 
         SnackbarHost(
             snackbar,
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp),
+            // Clear of the tool strip and page bar when they show.
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
+                .padding(bottom = if (chromeVisible && selection == null) 148.dp else 72.dp),
         )
     }
 
     // ---- Dialogs & sheets
+    if (showTools) {
+        ReaderToolsSheet(readerTools.drop(READER_STRIP_SIZE), onTool = ::useTool, onDismiss = { showTools = false })
+    }
     if (showGoTo) {
         GoToPageDialog(
             pageCount = doc.pageCount,
