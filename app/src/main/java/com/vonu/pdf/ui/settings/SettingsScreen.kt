@@ -175,7 +175,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             ListItem(
                 leadingContent = {
                     Image(
-                        painter = painterResource(R.drawable.vonu_logo),
+                        painter = painterResource(R.drawable.ic_vonu_mark),
                         contentDescription = null,
                         modifier = Modifier.size(40.dp),
                     )

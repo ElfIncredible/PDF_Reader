@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,7 +42,7 @@ import com.vonu.pdf.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(onOpenDocument: (Uri) -> Unit, onBack: () -> Unit) {
+fun HistoryScreen(onOpenDocument: (Uri) -> Unit, onBack: (() -> Unit)? = null) {
     val app = LocalContext.current.applicationContext as VonuApp
     val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.container))
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -50,9 +51,12 @@ fun HistoryScreen(onOpenDocument: (Uri) -> Unit, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("History") },
+                title = { Text("History", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    // Shown only when opened from elsewhere; as a tab it has no back arrow.
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    }
                 },
                 actions = {
                     if (state.total > 0) {

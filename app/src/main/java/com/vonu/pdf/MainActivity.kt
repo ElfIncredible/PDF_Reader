@@ -8,11 +8,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -20,7 +27,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vonu.pdf.data.AppSettings
 import com.vonu.pdf.data.ThemeMode
 import com.vonu.pdf.navigation.AppNavHost
+import com.vonu.pdf.ui.components.VonuLanding
 import com.vonu.pdf.ui.theme.VonuTheme
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -30,6 +39,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) incomingUri.value = intent.pdfUri()
+        // Brand landing on a cold launch only; "Open with Vonu" goes straight to the document.
+        val coldLaunch = savedInstanceState == null && incomingUri.value == null
 
         val container = (application as VonuApp).container
 
@@ -51,12 +62,23 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
 
+            var landing by rememberSaveable { mutableStateOf(coldLaunch) }
+            LaunchedEffect(Unit) {
+                if (landing) {
+                    delay(LANDING_MS)
+                    landing = false
+                }
+            }
+
             VonuTheme(darkTheme = dark, dynamicColor = settings.dynamicColor) {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    AppNavHost(
-                        incomingUri = incomingUri.value,
-                        onIncomingHandled = { incomingUri.value = null },
-                    )
+                Box(Modifier.fillMaxSize()) {
+                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        AppNavHost(
+                            incomingUri = incomingUri.value,
+                            onIncomingHandled = { incomingUri.value = null },
+                        )
+                    }
+                    AnimatedVisibility(visible = landing, exit = fadeOut(tween(300))) { VonuLanding() }
                 }
             }
         }
@@ -71,6 +93,7 @@ class MainActivity : ComponentActivity() {
     private fun Intent.pdfUri(): Uri? = if (action == Intent.ACTION_VIEW) data else null
 
     private companion object {
+        const val LANDING_MS = 900L
         val LIGHT_SCRIM = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
         val DARK_SCRIM = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
     }

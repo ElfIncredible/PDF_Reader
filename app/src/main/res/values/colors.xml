@@ -1,4 +1,6 @@
 <resources>
-    <color name="ic_launcher_background">#1D4ED8</color>
-    <color name="window_background">#FFF8FAFE</color>
+    <!-- Vonu PDF hue (brand README: Vonu PDF #C2412D). -->
+    <color name="ic_launcher_background">#C2412D</color>
+    <!-- Lagoon ground; matches the Compose background so the landing screen has no flash. -->
+    <color name="window_background">#FFF3EEE4</color>
 </resources>

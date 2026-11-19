@@ -9,36 +9,70 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import com.vonu.pdf.R
 
-// Vonu brand: tech blue with the amber Vonu dot.
-private val Blue = Color(0xFF1D4ED8)
-private val Navy = Color(0xFF0B1F44)
-private val BlueLight = Color(0xFFA8C4FF)
-private val Amber = Color(0xFFFFB627)
+// Vonu brand (Vonu Branding/README.md): Lagoon ground and ink, Vonu PDF red as the product hue.
+// Dark mode uses the Reef Night theme. Coral is reserved for the company mark, never the UI.
+private val PdfRed = Color(0xFFC2412D)
+private val LagoonInk = Color(0xFF0B4F5C)
+
+/** The wordmark face: lowercase "vonu" in Outfit Bold. */
+val Wordmark = FontFamily(Font(R.font.outfit_bold))
 
 private val LightColors = lightColorScheme(
-    primary = Blue,
+    primary = PdfRed,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFDBE6FF),
-    onPrimaryContainer = Navy,
-    secondary = Color(0xFF565E71),
-    tertiary = Color(0xFF8A5300),
-    tertiaryContainer = Color(0xFFFFDDB3),
-    onTertiaryContainer = Color(0xFF2C1700),
-    background = Color(0xFFF8FAFE),
-    surface = Color(0xFFF8FAFE),
+    primaryContainer = Color(0xFFF6DAD2),
+    onPrimaryContainer = Color(0xFF410C03),
+    secondary = LagoonInk,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD3E6E4),
+    onSecondaryContainer = Color(0xFF062A31),
+    tertiary = LagoonInk,
+    tertiaryContainer = Color(0xFFD3E6E4),
+    onTertiaryContainer = Color(0xFF062A31),
+    background = Color(0xFFF3EEE4),
+    onBackground = Color(0xFF14262B),
+    surface = Color(0xFFF3EEE4),
+    onSurface = Color(0xFF14262B),
+    surfaceVariant = Color(0xFFE6DED0),
+    onSurfaceVariant = Color(0xFF4E5E61),
+    outline = Color(0xFF7D8A8C),
+    outlineVariant = Color(0xFFD9CFBE),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFF8F4EC),
+    surfaceContainer = Color(0xFFEFE8DC),
+    surfaceContainerHigh = Color(0xFFEAE2D4),
+    surfaceContainerHighest = Color(0xFFE4DBCB),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = BlueLight,
-    onPrimary = Color(0xFF0A2D6E),
-    primaryContainer = Color(0xFF1D4ED8),
-    onPrimaryContainer = Color(0xFFDBE6FF),
-    secondary = Color(0xFFBEC6DC),
-    tertiary = Amber,
-    tertiaryContainer = Color(0xFF6A3F00),
-    background = Color(0xFF0F131A),
-    surface = Color(0xFF0F131A),
+    primary = Color(0xFFFFB4A5),
+    onPrimary = Color(0xFF5F1608),
+    primaryContainer = Color(0xFF8E2C1C),
+    onPrimaryContainer = Color(0xFFFFDAD2),
+    secondary = Color(0xFF7FD6CF),
+    onSecondary = Color(0xFF003734),
+    secondaryContainer = Color(0xFF124A4F),
+    onSecondaryContainer = Color(0xFFA6F0E9),
+    tertiary = Color(0xFF7FD6CF),
+    tertiaryContainer = Color(0xFF124A4F),
+    onTertiaryContainer = Color(0xFFA6F0E9),
+    background = Color(0xFF0D1B2A),
+    onBackground = Color(0xFFE4EEF0),
+    surface = Color(0xFF0D1B2A),
+    onSurface = Color(0xFFE4EEF0),
+    surfaceVariant = Color(0xFF2A3A48),
+    onSurfaceVariant = Color(0xFFA9B8BF),
+    outline = Color(0xFF74848D),
+    outlineVariant = Color(0xFF2C3D4C),
+    surfaceContainerLowest = Color(0xFF08131F),
+    surfaceContainerLow = Color(0xFF122233),
+    surfaceContainer = Color(0xFF15283A),
+    surfaceContainerHigh = Color(0xFF1B3044),
+    surfaceContainerHighest = Color(0xFF223A50),
 )
 
 @Composable

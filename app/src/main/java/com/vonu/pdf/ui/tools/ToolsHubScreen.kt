@@ -2,24 +2,18 @@
 
 package com.vonu.pdf.ui.tools
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.Draw
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -27,64 +21,53 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.vonu.pdf.ui.components.BrandLabel
 
-private data class Upcoming(val title: String, val note: String, val icon: ImageVector)
-
-private val upcoming = buildList {
-    if (ToolKind.ASSISTANT.comingSoon) {
-        add(Upcoming("AI assistant", "Summaries, questions about your PDF, tables and translation · coming in a future update", ToolKind.ASSISTANT.icon))
-    }
-}
-
+/** Tools tab: every available tool, grouped by the job it does. */
 @Composable
-fun ToolsHubScreen(onOpenTool: (ToolKind) -> Unit, onBack: () -> Unit) {
+fun ToolsHubScreen(onOpenTool: (ToolKind) -> Unit) {
+    val groups = ToolKind.available.groupBy { it.group }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Tools") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                },
-            )
+            TopAppBar(title = { Text("Tools", fontWeight = FontWeight.Bold) })
         },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            items(ToolKind.available) { kind ->
-                Card(
-                    onClick = { onOpenTool(kind) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                ) {
-                    ListItem(
-                        leadingContent = { Icon(kind.icon, null, tint = MaterialTheme.colorScheme.primary) },
-                        headlineContent = { Text(kind.title) },
-                        supportingContent = { Text(kind.description) },
-                        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    )
+            ToolGroup.entries.forEach { group ->
+                val tools = groups[group].orEmpty()
+                if (tools.isEmpty()) return@forEach
+                item(key = group.name) {
+                    BrandLabel(group.title, Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp))
                 }
-            }
-            if (upcoming.isNotEmpty()) item {
-                Text(
-                    "Coming soon",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 16.dp, start = 4.dp),
-                )
-            }
-            items(upcoming) { u ->
-                ListItem(
-                    leadingContent = { Icon(u.icon, null, tint = MaterialTheme.colorScheme.outline) },
-                    headlineContent = { Text(u.title, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    supportingContent = { Text(u.note) },
-                )
+                items(tools, key = { it.id }) { kind -> ToolRow(kind, onClick = { onOpenTool(kind) }) }
             }
         }
     }
+}
+
+@Composable
+private fun ToolRow(kind: ToolKind, onClick: () -> Unit) {
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 4.dp),
+        leadingContent = {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(kind.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+        },
+        headlineContent = { Text(kind.title, fontWeight = FontWeight.SemiBold) },
+        supportingContent = { Text(kind.description) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+    )
 }

@@ -1,8 +1,25 @@
 package com.vonu.pdf.navigation
 
 import android.net.Uri
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -43,6 +60,13 @@ object Routes {
         "tool/${kind.id}" + (uri?.let { "?uri=${Uri.encode(it.toString())}" } ?: "")
 }
 
+/** The three top-level tabs. Everything else opens on top of them without the bar. */
+private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
+    FILES(Routes.HOME, "Files", Icons.Outlined.Description),
+    TOOLS(Routes.TOOLS, "Tools", Icons.Outlined.Apps),
+    HISTORY(Routes.HISTORY, "History", Icons.Outlined.History),
+}
+
 @Composable
 fun AppNavHost(
     incomingUri: Uri?,
@@ -60,147 +84,173 @@ fun AppNavHost(
         }
     }
 
-    NavHost(navController = navController, startDestination = Routes.HOME) {
-        composable(Routes.HOME) {
-            HomeScreen(
-                onOpenDocument = openDocument,
-                onBrowse = { navController.navigate(Routes.BROWSER) },
-                onHistory = { navController.navigate(Routes.HISTORY) },
-                onTool = { kind -> navController.navigate(if (kind == null) Routes.TOOLS else Routes.tool(kind)) },
-                onSettings = { navController.navigate(Routes.SETTINGS) },
-            )
-        }
-        composable(Routes.BROWSER) {
-            BrowserScreen(
-                onOpenDocument = openDocument,
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Routes.TOOLS) {
-            ToolsHubScreen(
-                onOpenTool = { navController.navigate(Routes.tool(it)) },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = Routes.TOOL,
-            arguments = listOf(
-                navArgument("kind") { type = NavType.StringType },
-                navArgument("uri") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-            ),
-        ) { entry ->
-            val kind = ToolKind.fromId(entry.arguments?.getString("kind"))
-            val uri = entry.arguments?.getString("uri").orEmpty().takeIf { it.isNotEmpty() }?.let(Uri::parse)
-            when (kind) {
-                null -> LaunchedEffect(Unit) { navController.popBackStack() }
-                ToolKind.SIGN -> PickPdfFirst(
-                    initialUri = uri,
-                    kind = kind,
-                    message = "Pick the PDF to sign. It opens in the editor with your signatures ready.",
-                    onBack = { navController.popBackStack() },
-                ) { chosen ->
-                    LaunchedEffect(chosen) {
-                        navController.navigate(Routes.viewer(chosen, "sign")) { popUpTo(Routes.TOOL) { inclusive = true } }
+    val backStack by navController.currentBackStackEntryAsState()
+    val currentRoute = backStack?.destination?.route
+    val currentTab = Tab.entries.firstOrNull { it.route == currentRoute }
+
+    Scaffold(
+        // Only the tab bar's own height; each screen still handles the status and gesture bars.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (currentTab != null) {
+                NavigationBar {
+                    Tab.entries.forEach { tab ->
+                        NavigationBarItem(
+                            selected = tab == currentTab,
+                            onClick = {
+                                navController.navigate(tab.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(tab.icon, contentDescription = null) },
+                            label = { Text(tab.label) },
+                        )
                     }
                 }
-                ToolKind.FILL_FORM -> FormScreen(
-                    initialUri = uri,
-                    onBack = { navController.popBackStack() },
-                    onOpenDocument = { saved ->
-                        navController.navigate(Routes.viewer(saved)) { popUpTo(Routes.TOOL) { inclusive = true } }
-                    },
-                )
-                ToolKind.ASSISTANT -> if (ToolKind.ASSISTANT.comingSoon) {
-                    // Held back for a later update; leave if someone lands here from an old link.
-                    LaunchedEffect(Unit) { navController.popBackStack() }
-                } else {
-                    AssistantScreen(
-                        initialUri = uri,
-                        onBack = { navController.popBackStack() },
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                    )
-                }
-                ToolKind.REDACT -> RedactScreen(
-                    initialUri = uri,
-                    onBack = { navController.popBackStack() },
+            }
+        },
+    ) { outer ->
+        NavHost(
+            navController = navController,
+            startDestination = Routes.HOME,
+            // Screens keep their own Scaffolds; hand them only the space the tab bar leaves.
+            modifier = Modifier.padding(outer).consumeWindowInsets(outer),
+        ) {
+            composable(Routes.HOME) {
+                HomeScreen(
                     onOpenDocument = openDocument,
-                )
-                ToolKind.COMPARE -> CompareScreen(onBack = { navController.popBackStack() })
-                ToolKind.BATCH -> BatchScreen(onBack = { navController.popBackStack() })
-                ToolKind.METADATA -> MetadataScreen(
-                    initialUri = uri,
-                    onBack = { navController.popBackStack() },
-                    onOpenDocument = openDocument,
-                )
-                ToolKind.DIGITAL_SIGN -> DigitalSignScreen(
-                    initialUri = uri,
-                    onBack = { navController.popBackStack() },
-                    onOpenDocument = openDocument,
-                )
-                ToolKind.ORGANIZE -> OrganizeScreen(
-                    initialUri = uri,
-                    onBack = { navController.popBackStack() },
-                    onOpenDocument = { saved ->
-                        navController.navigate(Routes.viewer(saved)) { popUpTo(Routes.TOOL) { inclusive = true } }
-                    },
-                )
-                else -> ToolScreen(
-                    kind = kind,
-                    initialUri = uri,
-                    onBack = { navController.popBackStack() },
-                    onOpenDocument = openDocument,
+                    onBrowse = { navController.navigate(Routes.BROWSER) },
+                    onSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
-        }
-        composable(Routes.HISTORY) {
-            HistoryScreen(
-                onOpenDocument = openDocument,
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.VIEWER,
-            arguments = listOf(
-                navArgument("uri") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-                navArgument("action") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-            ),
-        ) { entry ->
-            val raw = entry.arguments?.getString("uri").orEmpty()
-            val action = entry.arguments?.getString("action").orEmpty()
-            if (raw.isEmpty()) {
-                LaunchedEffect(Unit) { navController.popBackStack() }
-            } else {
-                ViewerScreen(
-                    uri = Uri.parse(raw),
-                    startAction = action,
+            composable(Routes.BROWSER) {
+                BrowserScreen(
+                    onOpenDocument = openDocument,
                     onBack = { navController.popBackStack() },
-                    // After "Save as copy", swap this reader for the new file.
-                    onOpenDocument = { copy ->
-                        navController.navigate(Routes.viewer(copy)) {
-                            popUpTo(Routes.VIEWER) { inclusive = true }
-                        }
+                )
+            }
+            composable(Routes.TOOLS) {
+                ToolsHubScreen(onOpenTool = { navController.navigate(Routes.tool(it)) })
+            }
+            composable(
+                route = Routes.TOOL,
+                arguments = listOf(
+                    navArgument("kind") { type = NavType.StringType },
+                    navArgument("uri") {
+                        type = NavType.StringType
+                        defaultValue = ""
                     },
-                    onOpenTool = { kind, doc ->
-                        navController.navigate(Routes.tool(kind, doc)) {
-                            // These may rewrite this very file, so close the reader first.
-                            if (kind == ToolKind.ORGANIZE || kind == ToolKind.FILL_FORM) {
+                ),
+            ) { entry ->
+                val kind = ToolKind.fromId(entry.arguments?.getString("kind"))
+                val uri = entry.arguments?.getString("uri").orEmpty().takeIf { it.isNotEmpty() }?.let(Uri::parse)
+                when (kind) {
+                    null -> LaunchedEffect(Unit) { navController.popBackStack() }
+                    ToolKind.SIGN -> PickPdfFirst(
+                        initialUri = uri,
+                        kind = kind,
+                        message = "Pick the PDF to sign. It opens in the editor with your signatures ready.",
+                        onBack = { navController.popBackStack() },
+                    ) { chosen ->
+                        LaunchedEffect(chosen) {
+                            navController.navigate(Routes.viewer(chosen, "sign")) { popUpTo(Routes.TOOL) { inclusive = true } }
+                        }
+                    }
+                    ToolKind.FILL_FORM -> FormScreen(
+                        initialUri = uri,
+                        onBack = { navController.popBackStack() },
+                        onOpenDocument = { saved ->
+                            navController.navigate(Routes.viewer(saved)) { popUpTo(Routes.TOOL) { inclusive = true } }
+                        },
+                    )
+                    ToolKind.ASSISTANT -> if (ToolKind.ASSISTANT.comingSoon) {
+                        // Held back for a later update; leave if someone lands here from an old link.
+                        LaunchedEffect(Unit) { navController.popBackStack() }
+                    } else {
+                        AssistantScreen(
+                            initialUri = uri,
+                            onBack = { navController.popBackStack() },
+                            onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                        )
+                    }
+                    ToolKind.REDACT -> RedactScreen(
+                        initialUri = uri,
+                        onBack = { navController.popBackStack() },
+                        onOpenDocument = openDocument,
+                    )
+                    ToolKind.COMPARE -> CompareScreen(onBack = { navController.popBackStack() })
+                    ToolKind.BATCH -> BatchScreen(onBack = { navController.popBackStack() })
+                    ToolKind.METADATA -> MetadataScreen(
+                        initialUri = uri,
+                        onBack = { navController.popBackStack() },
+                        onOpenDocument = openDocument,
+                    )
+                    ToolKind.DIGITAL_SIGN -> DigitalSignScreen(
+                        initialUri = uri,
+                        onBack = { navController.popBackStack() },
+                        onOpenDocument = openDocument,
+                    )
+                    ToolKind.ORGANIZE -> OrganizeScreen(
+                        initialUri = uri,
+                        onBack = { navController.popBackStack() },
+                        onOpenDocument = { saved ->
+                            navController.navigate(Routes.viewer(saved)) { popUpTo(Routes.TOOL) { inclusive = true } }
+                        },
+                    )
+                    else -> ToolScreen(
+                        kind = kind,
+                        initialUri = uri,
+                        onBack = { navController.popBackStack() },
+                        onOpenDocument = openDocument,
+                    )
+                }
+            }
+            composable(Routes.HISTORY) {
+                HistoryScreen(onOpenDocument = openDocument)
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = Routes.VIEWER,
+                arguments = listOf(
+                    navArgument("uri") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("action") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) { entry ->
+                val raw = entry.arguments?.getString("uri").orEmpty()
+                val action = entry.arguments?.getString("action").orEmpty()
+                if (raw.isEmpty()) {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                } else {
+                    ViewerScreen(
+                        uri = Uri.parse(raw),
+                        startAction = action,
+                        onBack = { navController.popBackStack() },
+                        // After "Save as copy", swap this reader for the new file.
+                        onOpenDocument = { copy ->
+                            navController.navigate(Routes.viewer(copy)) {
                                 popUpTo(Routes.VIEWER) { inclusive = true }
                             }
-                        }
-                    },
-                )
+                        },
+                        onOpenTool = { kind, doc ->
+                            navController.navigate(Routes.tool(kind, doc)) {
+                                // These may rewrite this very file, so close the reader first.
+                                if (kind == ToolKind.ORGANIZE || kind == ToolKind.FILL_FORM) {
+                                    popUpTo(Routes.VIEWER) { inclusive = true }
+                                }
+                            }
+                        },
+                    )
+                }
             }
         }
     }

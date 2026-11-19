@@ -46,6 +46,16 @@ enum class ToolKind(val id: String, val title: String, val description: String, 
     TEXT_TO_PDF("text-to-pdf", "Text to PDF", "Convert a .txt file into a PDF", Icons.Outlined.Description),
     ;
 
+    /** The job this tool belongs to on the Tools tab. */
+    val group: ToolGroup
+        get() = when (this) {
+            SIGN, FILL_FORM, DIGITAL_SIGN, REDACT -> ToolGroup.SIGN_AND_FILL
+            ORGANIZE, MERGE, SPLIT, COMPRESS -> ToolGroup.PAGES
+            SCAN, IMAGES_TO_PDF, PDF_TO_IMAGES, TEXT_TO_PDF, CONVERT_OFFICE, OCR -> ToolGroup.CONVERT
+            PROTECT, UNLOCK, METADATA -> ToolGroup.PROTECT
+            COMPARE, BATCH, ASSISTANT -> ToolGroup.MORE
+        }
+
     /** Built, but held back for a later update (see util/Features). */
     val comingSoon: Boolean
         get() = this == ASSISTANT && !com.vonu.pdf.util.Features.AI_ASSISTANT
@@ -56,4 +66,13 @@ enum class ToolKind(val id: String, val title: String, val description: String, 
 
         fun fromId(id: String?): ToolKind? = entries.firstOrNull { it.id == id }
     }
+}
+
+/** Tools tab sections, in display order. */
+enum class ToolGroup(val title: String) {
+    SIGN_AND_FILL("Sign & fill"),
+    PAGES("Pages"),
+    CONVERT("Scan & convert"),
+    PROTECT("Protect"),
+    MORE("More"),
 }
