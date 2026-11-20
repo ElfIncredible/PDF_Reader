@@ -11,6 +11,7 @@ A small Python service that gives the Vonu PDF app the features a phone can't do
 | `POST /convert` | Word / Excel / PowerPoint / ODF / RTF / HTML / TXT → PDF (LibreOffice) |
 | `POST /pdfa` | PDF → PDF/A-1b/2b/3b (Ghostscript, embedded sRGB profile); validated with veraPDF if installed (`X-Vonu-Validation` header) |
 | `POST /transcribe` | **Vonu Minutes:** meeting recording → text with timed segments (faster-whisper, on this machine; `?language=en` optional). The audio is deleted right after |
+| `POST /minutes/draft` | **Vonu Minutes:** agenda, attendees, transcript and notes → a first draft of the minutes as JSON (discussion per agenda item, decisions, actions with owners and dates). Claude's reply is schema-constrained; every value is re-checked. Nothing is stored |
 | `POST /minutes/summary` | **Vonu Minutes:** `{title, text}` (the minutes as Markdown, then any transcripts) → overview + key points (decisions, actions with owners). Uses the AI model below; nothing is stored |
 
 The app only sends **page text** for summaries and questions, and the **file** for tables,
@@ -28,7 +29,7 @@ docker compose exec ollama ollama pull llama3.1:8b   # first time only (~5 GB)
 curl http://localhost:8000/health
 ```
 
-**With Claude instead of Ollama** (used for Vonu Minutes AI summaries): in `.env` set
+**With Claude instead of Ollama** (used for Vonu Minutes AI drafts and summaries): in `.env` set
 `LLM_PROVIDER=anthropic`, `LLM_MODEL=claude-opus-5-5`, `LLM_API_KEY=<your Anthropic key>` and
 `MAX_CONTEXT_CHARS=400000`, then `docker compose up -d --build`. The key stays on this server;
 the text being summarised is sent to Anthropic and billed per use. Skip the `ollama pull`.
@@ -64,6 +65,7 @@ app/llm.py      provider adapters (Claude via the anthropic SDK; others stdlib o
 app/tables.py   pdfplumber → rows → Excel
 app/transcribe.py  faster-whisper speech to text for Vonu Minutes
 app/minutes.py     AI summaries of Vonu Minutes meetings
+app/drafts.py      AI first drafts of Vonu Minutes (structured JSON)
 app/convert.py  LibreOffice headless
 app/pdfa.py     Ghostscript PDF/A + optional veraPDF
 tests/          pytest (the LLM is faked; LibreOffice tests run if it's installed)

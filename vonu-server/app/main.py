@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from fastapi.concurrency import run_in_threadpool
 
-from . import __version__, config, convert, minutes, pdfa, rag, tables, transcribe
+from . import __version__, config, convert, drafts, minutes, pdfa, rag, tables, transcribe
 from .llm import LLMUnavailable, from_settings
 from .transcribe import TranscriberUnavailable
 
@@ -65,6 +65,7 @@ def health() -> dict:
             "tables": True,
             "transcribe": transcribe.installed(),
             "minutes_summary": settings.llm_provider != "none",
+            "minutes_draft": settings.llm_provider != "none",
         },
         "auth": bool(settings.token),
     }
@@ -114,6 +115,12 @@ class MinutesIn(BaseModel):
 def summarize_minutes(body: MinutesIn) -> dict:
     """Vonu Minutes: an AI summary of one meeting. Nothing is kept."""
     return minutes.summarize(llm, body.text, body.title, settings.max_context_chars)
+
+
+@app.post("/minutes/draft", dependencies=[Depends(require_token)])
+def draft_minutes(body: drafts.DraftIn) -> dict:
+    """Vonu Minutes: a first draft of the minutes from a transcript and notes. Nothing is kept."""
+    return drafts.draft(llm, body, settings.max_context_chars)
 
 
 @app.post("/ask", dependencies=[Depends(require_token)])

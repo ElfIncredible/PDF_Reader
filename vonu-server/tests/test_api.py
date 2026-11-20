@@ -45,3 +45,14 @@ def test_minutes_summary_endpoint():
     r = c.post("/minutes/summary", json=body, headers={"Authorization": "Bearer secret"})
     assert r.status_code == 200 and r.json()["summary"] == "OK."
     assert client().get("/health").json()["features"]["minutes_summary"] in (True, False)
+
+
+def test_minutes_draft_endpoint():
+    c = client(token="secret")
+    body = {"title": "Board", "agenda": [{"title": "Budget"}], "notes": "Budget approved."}
+    assert c.post("/minutes/draft", json=body).status_code == 401
+    r = c.post("/minutes/draft", json=body, headers={"Authorization": "Bearer secret"})
+    # The Echo model answers in prose, so the draft is reported as unreadable (503), not a crash.
+    assert r.status_code == 503 and "expected form" in r.json()["detail"]
+    empty = c.post("/minutes/draft", json={"title": "Board"}, headers={"Authorization": "Bearer secret"})
+    assert empty.status_code == 422

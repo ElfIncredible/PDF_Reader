@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
 from typing import Protocol
@@ -16,6 +17,27 @@ class LLMUnavailable(RuntimeError):
 
 class LLM(Protocol):
     def complete(self, system: str, prompt: str, max_tokens: int = 900) -> str: ...
+
+
+def parse_json_object(raw: str) -> dict:
+    """The first {...} in a reply. Small models often wrap JSON in prose or code fences."""
+    m = re.search(r"\{.*\}", raw, re.DOTALL)
+    try:
+        value = json.loads(m.group(0)) if m else None
+    except json.JSONDecodeError:
+        value = None
+    if not isinstance(value, dict):
+        raise LLMUnavailable("The AI model's reply wasn't in the expected form; try again")
+    return value
+
+
+def complete_json(llm: "LLM", system: str, prompt: str, schema: dict, max_tokens: int = 4000) -> dict:
+    """A JSON object shaped by `schema`. Providers that can enforce a schema do; others are asked to."""
+    native = getattr(llm, "complete_structured", None)
+    if native is not None:
+        return parse_json_object(native(system, prompt, schema, max_tokens))
+    guide = f"{prompt}\n\nReply with only one JSON object that matches this JSON Schema:\n{json.dumps(schema)}"
+    return parse_json_object(llm.complete(system, guide, max_tokens))
 
 
 def _post_json(url: str, payload: dict, headers: dict, timeout: float) -> dict:
@@ -74,7 +96,13 @@ class Anthropic:
         self._sdk = anthropic
         self.client = anthropic.Anthropic(api_key=api_key, base_url=base_url.rstrip("/"), timeout=timeout)
 
-    def complete(self, system: str, prompt: str, max_tokens: int = 900) -> str:
+    def complete_structured(self, system: str, prompt: str, schema: dict, max_tokens: int = 4000) -> str:
+        if self.model not in self._CURRENT:
+            guide = f"{prompt}\n\nReply with only one JSON object that matches this JSON Schema:\n{json.dumps(schema)}"
+            return self.complete(system, guide, max_tokens)
+        return self.complete(system, prompt, max_tokens, schema)
+
+    def complete(self, system: str, prompt: str, max_tokens: int = 900, schema: dict | None = None) -> str:
         sdk = self._sdk
         if sdk is None:
             raise LLMUnavailable("The anthropic package isn't installed on this server (pip install anthropic)")
@@ -86,6 +114,9 @@ class Anthropic:
         }
         if self.model in self._CURRENT:
             args["output_config"] = {"effort": "medium"}
+            if schema is not None:
+                # Structured outputs: the reply is guaranteed to be JSON matching the schema.
+                args["output_config"]["format"] = {"type": "json_schema", "schema": schema}
             args["betas"] = ["server-side-fallback-2026-07-01"]
             args["fallbacks"] = "default"
         try:
@@ -106,6 +137,8 @@ class Anthropic:
             raise LLMUnavailable(f"Couldn't reach Anthropic: {e}") from e
         if message.stop_reason == "refusal":
             raise LLMUnavailable("The AI model declined to process this text")
+        if message.stop_reason == "max_tokens" and schema is not None:
+            raise LLMUnavailable("The AI model's reply was cut off before it finished; try a shorter meeting")
         return "".join(b.text for b in message.content if b.type == "text").strip()
 
 
