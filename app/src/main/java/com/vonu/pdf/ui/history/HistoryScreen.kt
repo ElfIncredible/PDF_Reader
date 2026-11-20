@@ -31,7 +31,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,7 +53,7 @@ fun HistoryScreen(onOpenDocument: (Uri) -> Unit, onBack: (() -> Unit)? = null) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("History", fontWeight = FontWeight.Bold) },
+                title = { Text("History") },
                 navigationIcon = {
                     // Shown only when opened from elsewhere; as a tab it has no back arrow.
                     if (onBack != null) {

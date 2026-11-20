@@ -260,7 +260,7 @@ From the command line, `./gradlew assembleDebug` builds `app/build/outputs/apk/d
 
 | Version | Changes |
 |---|---|
-| Unreleased | Tool strip in the reader: your four most-used tools (plus what the file needs) always visible, the rest under More. UI/UX review: clearer recent-file details, one "Star" wording, bigger section labels, no developer jargon in messages; screenshots and flowcharts in the docs |
+| Unreleased | Vonu family type: Archivo for the app, Geist Mono for labels. Tool strip in the reader: your four most-used tools (plus what the file needs) always visible, the rest under More. UI/UX review: clearer recent-file details, one "Star" wording, bigger section labels, no developer jargon in messages; screenshots and flowcharts in the docs |
 | 1.1.2 | New Vonu blue, and the V logo as the app icon and inside the app |
 | 1.1.1 | Renamed to Vonu PDF with a new logo; a single app (the debug "Leaks" app is gone); AI assistant marked as coming soon |
 | 1.1.0 | Lite mode, Android 7.0+, smaller download, Read aloud, Text view, scanning without the Play scanner, black-and-white scans |

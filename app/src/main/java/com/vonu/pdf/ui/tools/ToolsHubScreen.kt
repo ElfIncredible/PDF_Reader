@@ -35,7 +35,7 @@ fun ToolsHubScreen(onOpenTool: (ToolKind) -> Unit) {
     val groups = ToolKind.available.groupBy { it.group }
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Tools", fontWeight = FontWeight.Bold) })
+            TopAppBar(title = { Text("Tools") })
         },
     ) { padding ->
         LazyColumn(

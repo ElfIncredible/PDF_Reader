@@ -46,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -119,7 +118,6 @@ fun HomeScreen(
                         Text(
                             "Recent",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
                         )
                         FilterChip(
@@ -177,7 +175,7 @@ fun HomeScreen(
 @Composable
 private fun StartPanel(onOpenFile: () -> Unit, onBrowse: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Your PDFs", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Your PDFs", style = MaterialTheme.typography.headlineMedium)
         Text(
             "Open a file to read, sign or share it.",
             style = MaterialTheme.typography.bodyLarge,
@@ -219,7 +217,6 @@ private fun ContinueReadingCard(doc: RecentDocument, onClick: () -> Unit) {
                 Text(
                     doc.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

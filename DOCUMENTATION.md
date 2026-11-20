@@ -328,7 +328,9 @@ The theme lives in ui/theme/Theme.kt; brand pieces (VonuBrandTitle, BrandLabel, 
 | surfaceContainerLow  | #F8F4EC              | #122233           | Cards                                      |
 | onSurfaceVariant     | #4E5E61              | #A9B8BF           | Secondary text (at least 4.5:1 on ground)  |
 
-- Wordmark: Outfit Bold, lowercase "vonu". Everything else uses the Material 3 type scale.
+- Brand source: the shared Vonu brand folder (D:ds Max Work\Vonu\HD_Video_Converterrand). Vonu PDF's hue is #C2412D and its signal is the page; branding/make_pdf_ui.py draws the launcher and in-app mark from the brand script, never by hand.
+
+- Fonts follow the family: Outfit Bold for the lowercase "vonu" wordmark; **Archivo** (variable, ExtraBold headings, SemiBold labels, Regular body, tabular figures) for all product UI, on the same scale as Vonu HD Uploader; **Geist Mono** for small labels. Screens take text styles from MaterialTheme.typography instead of setting weights or sizes. Licences are in app/src/main/assets/licenses.
 
 - Section labels (Tools groups, History days, Settings sections, "Continue reading") use BrandLabel: 12 sp monospace, upper case, marked as headings for TalkBack.
 
@@ -517,7 +519,7 @@ The reader itself can't be captured this way, because PdfRenderer has no JVM imp
 
 | Version       | Date       | Changes                                                                                                                |
 |---------------|------------|------------------------------------------------------------------------------------------------------------------------|
-| Unreleased    | 19 Nov 2026 | Reader tool strip (most-used tools always visible, the rest under More); UI/UX review fixes; screenshots and flowcharts |
+| Unreleased    | 20 Nov 2026 | Vonu family typography (Archivo UI, Geist Mono labels). Reader tool strip (most-used tools always visible, the rest under More); UI/UX review fixes; screenshots and flowcharts |
 | 1.1.2         | Nov 2026   | Vonu identity, Files / Tools / History tabs, landing screen, V logo app icon                                           |
 | 1.1.1         | 7 Nov 2026 | Renamed to Vonu PDF with a new logo; one app only (LeakCanary removed); AI assistant marked as coming soon             |
 | 1.1.0         | 6 Nov 2026 | Lite mode; Android 7.0+; smaller download; Read aloud; Text view; scanning without Play scanner; black-and-white scans |

@@ -23,14 +23,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vonu.pdf.R
+import com.vonu.pdf.ui.theme.BrandMono
 import com.vonu.pdf.ui.theme.Wordmark
 
-private val Label = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.5.sp)
+private val Label = TextStyle(fontFamily = BrandMono, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 1.5.sp)
 
 /** Brand bar title: the Vonu PDF mark, a small "VONU" label and the product name. */
 @Composable
@@ -43,7 +42,7 @@ fun VonuBrandTitle(name: String = "PDF") {
         Spacer(Modifier.width(12.dp))
         Column {
             Text("VONU", style = Label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(name, style = MaterialTheme.typography.titleLarge)
         }
     }
 }
@@ -77,7 +76,7 @@ fun VonuLanding(modifier: Modifier = Modifier) {
             )
             Text(
                 "PDF",
-                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, letterSpacing = 6.sp),
+                style = TextStyle(fontFamily = BrandMono, fontSize = 13.sp, letterSpacing = 6.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
