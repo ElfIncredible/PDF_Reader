@@ -36,3 +36,12 @@ def test_token_required_when_set():
 def test_empty_document_is_a_clear_422():
     r = client().post("/ask", json={"pages": [""], "question": "What?"})
     assert r.status_code == 422 and "no text" in r.json()["detail"]
+
+
+def test_minutes_summary_endpoint():
+    c = client(token="secret")
+    body = {"text": "# Minutes: Board\n\nBudget approved.", "title": "Board"}
+    assert c.post("/minutes/summary", json=body).status_code == 401
+    r = c.post("/minutes/summary", json=body, headers={"Authorization": "Bearer secret"})
+    assert r.status_code == 200 and r.json()["summary"] == "OK."
+    assert client().get("/health").json()["features"]["minutes_summary"] in (True, False)

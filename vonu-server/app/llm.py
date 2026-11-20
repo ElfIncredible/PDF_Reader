@@ -1,4 +1,4 @@
-"""Language-model providers behind one tiny interface. Uses only the standard library."""
+"""Language-model providers behind one tiny interface. Claude uses the official anthropic SDK."""
 
 from __future__ import annotations
 
@@ -55,28 +55,58 @@ class OpenAICompatible:
 
 
 class Anthropic:
-    """Anthropic's Messages API."""
+    """Claude through the official Anthropic SDK (pip install anthropic)."""
+
+    # Current models: thinking is always on (and counts toward max_tokens), effort sets its depth,
+    # and the API can re-run a declined request on a fallback model. Older models get neither field.
+    _CURRENT = ("claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5")
+    _THINKING_ROOM = 16000
 
     def __init__(self, api_key: str, model: str, timeout: float, base_url: str = "https://api.anthropic.com"):
         if not api_key:
             raise LLMUnavailable("LLM_API_KEY is required for the anthropic provider")
-        self.url = f"{base_url.rstrip('/')}/v1/messages"
-        self.headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
         self.model = model
-        self.timeout = timeout
+        try:
+            import anthropic
+        except ImportError:  # reported on use, so the rest of the server still starts
+            self._sdk = self.client = None
+            return
+        self._sdk = anthropic
+        self.client = anthropic.Anthropic(api_key=api_key, base_url=base_url.rstrip("/"), timeout=timeout)
 
     def complete(self, system: str, prompt: str, max_tokens: int = 900) -> str:
-        body = {
+        sdk = self._sdk
+        if sdk is None:
+            raise LLMUnavailable("The anthropic package isn't installed on this server (pip install anthropic)")
+        args: dict = {
             "model": self.model,
-            "max_tokens": max_tokens,
+            "max_tokens": max_tokens + self._THINKING_ROOM,
             "system": system,
             "messages": [{"role": "user", "content": prompt}],
         }
-        out = _post_json(self.url, body, self.headers, self.timeout)
+        if self.model in self._CURRENT:
+            args["output_config"] = {"effort": "medium"}
+            args["betas"] = ["server-side-fallback-2026-07-01"]
+            args["fallbacks"] = "default"
         try:
-            return "".join(part.get("text", "") for part in out["content"]).strip()
-        except (KeyError, TypeError) as e:
-            raise LLMUnavailable("Unexpected reply from the AI model") from e
+            # Streamed so long minutes never hit an HTTP timeout; only the final message is used.
+            with self.client.beta.messages.stream(**args) as stream:
+                message = stream.get_final_message()
+        except sdk.AuthenticationError as e:
+            raise LLMUnavailable("Anthropic rejected the API key (LLM_API_KEY)") from e
+        except sdk.PermissionDeniedError as e:
+            raise LLMUnavailable(f"This API key can't use {self.model}") from e
+        except sdk.NotFoundError as e:
+            raise LLMUnavailable(f"Anthropic doesn't know the model '{self.model}' (LLM_MODEL)") from e
+        except sdk.RateLimitError as e:
+            raise LLMUnavailable("Anthropic is rate limiting this key; try again in a minute") from e
+        except sdk.APIStatusError as e:
+            raise LLMUnavailable(f"The AI model returned an error ({e.status_code}): {e.message}"[:300]) from e
+        except sdk.APIConnectionError as e:
+            raise LLMUnavailable(f"Couldn't reach Anthropic: {e}") from e
+        if message.stop_reason == "refusal":
+            raise LLMUnavailable("The AI model declined to process this text")
+        return "".join(b.text for b in message.content if b.type == "text").strip()
 
 
 class Disabled:

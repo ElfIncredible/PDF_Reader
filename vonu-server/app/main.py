@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from fastapi.concurrency import run_in_threadpool
 
-from . import __version__, config, convert, pdfa, rag, tables, transcribe
+from . import __version__, config, convert, minutes, pdfa, rag, tables, transcribe
 from .llm import LLMUnavailable, from_settings
 from .transcribe import TranscriberUnavailable
 
@@ -64,6 +64,7 @@ def health() -> dict:
             "validate": pdfa.verapdf() is not None,
             "tables": True,
             "transcribe": transcribe.installed(),
+            "minutes_summary": settings.llm_provider != "none",
         },
         "auth": bool(settings.token),
     }
@@ -102,6 +103,17 @@ class AskIn(PagesIn):
 @app.post("/summarize", dependencies=[Depends(require_token)])
 def summarize(body: SummarizeIn) -> dict:
     return rag.summarize(llm, body.pages, body.length, body.title, settings.max_context_chars)
+
+
+class MinutesIn(BaseModel):
+    text: str = Field(..., max_length=2_000_000, description="The minutes as Markdown, then any transcripts")
+    title: str | None = None
+
+
+@app.post("/minutes/summary", dependencies=[Depends(require_token)])
+def summarize_minutes(body: MinutesIn) -> dict:
+    """Vonu Minutes: an AI summary of one meeting. Nothing is kept."""
+    return minutes.summarize(llm, body.text, body.title, settings.max_context_chars)
 
 
 @app.post("/ask", dependencies=[Depends(require_token)])
