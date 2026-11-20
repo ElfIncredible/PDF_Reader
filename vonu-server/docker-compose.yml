@@ -11,6 +11,9 @@ services:
     restart: unless-stopped
     depends_on:
       - ollama
+    volumes:
+      # The speech model downloads once (small ~500 MB) and is kept across restarts.
+      - whisper:/home/vonu/.cache/huggingface
 
   ollama:
     image: ollama/ollama
@@ -25,3 +28,4 @@ services:
 
 volumes:
   ollama:
+  whisper:

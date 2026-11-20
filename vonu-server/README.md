@@ -10,6 +10,7 @@ A small Python service that gives the Vonu PDF app the features a phone can't do
 | `POST /tables` | Finds tables (pdfplumber) → JSON, or `?format=xlsx` for an Excel workbook (numbers stay numbers) |
 | `POST /convert` | Word / Excel / PowerPoint / ODF / RTF / HTML / TXT → PDF (LibreOffice) |
 | `POST /pdfa` | PDF → PDF/A-1b/2b/3b (Ghostscript, embedded sRGB profile); validated with veraPDF if installed (`X-Vonu-Validation` header) |
+| `POST /transcribe` | **Vonu Minutes:** meeting recording → text with timed segments (faster-whisper, on this machine; `?language=en` optional). The audio is deleted right after |
 
 The app only sends **page text** for summaries and questions, and the **file** for tables,
 conversion and PDF/A. Nothing is stored: files go to a temporary folder that's deleted after
@@ -55,6 +56,7 @@ app/main.py     HTTP routes, auth, error mapping
 app/rag.py      chunking, BM25 retrieval, prompts, summary/answer logic   ← most of the "AI"
 app/llm.py      provider adapters (stdlib only)
 app/tables.py   pdfplumber → rows → Excel
+app/transcribe.py  faster-whisper speech to text for Vonu Minutes
 app/convert.py  LibreOffice headless
 app/pdfa.py     Ghostscript PDF/A + optional veraPDF
 tests/          pytest (the LLM is faked; LibreOffice tests run if it's installed)

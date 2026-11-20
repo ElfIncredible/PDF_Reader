@@ -19,6 +19,13 @@ class Settings:
     # How much document text one model call may carry. Larger documents are summarised in parts.
     max_context_chars: int
     max_upload_mb: int
+    # Speech to text for Vonu Minutes recordings (faster-whisper). Bigger models are more accurate
+    # and slower: tiny, base, small, medium, large-v3. "small" suits a laptop CPU.
+    whisper_model: str = "small"
+    whisper_device: str = "auto"
+    whisper_compute: str = "int8"
+    # Recordings are larger than documents: about 29 MB per hour from the app.
+    max_audio_mb: int = 300
 
 
 def load() -> Settings:
@@ -32,4 +39,8 @@ def load() -> Settings:
         llm_timeout=float(env("LLM_TIMEOUT", "180")),
         max_context_chars=int(env("MAX_CONTEXT_CHARS", "24000")),
         max_upload_mb=int(env("MAX_UPLOAD_MB", "60")),
+        whisper_model=env("WHISPER_MODEL", "small"),
+        whisper_device=env("WHISPER_DEVICE", "auto"),
+        whisper_compute=env("WHISPER_COMPUTE", "int8"),
+        max_audio_mb=int(env("MAX_AUDIO_MB", "300")),
     )

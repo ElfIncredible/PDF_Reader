@@ -8,11 +8,15 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Upload
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
-from . import __version__, config, convert, pdfa, rag, tables
+from fastapi.concurrency import run_in_threadpool
+
+from . import __version__, config, convert, pdfa, rag, tables, transcribe
 from .llm import LLMUnavailable, from_settings
+from .transcribe import TranscriberUnavailable
 
 settings = config.load()
 llm = from_settings(settings)
+transcriber = transcribe.Transcriber(settings.whisper_model, settings.whisper_device, settings.whisper_compute)
 
 app = FastAPI(title="Vonu server", version=__version__)
 
@@ -27,15 +31,21 @@ async def llm_unavailable(_, exc: LLMUnavailable):
     return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
+@app.exception_handler(TranscriberUnavailable)
+async def transcriber_unavailable(_, exc: TranscriberUnavailable):
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
 @app.exception_handler(ValueError)
 async def bad_value(_, exc: ValueError):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
-async def read_upload(file: UploadFile) -> bytes:
+async def read_upload(file: UploadFile, limit_mb: int | None = None) -> bytes:
+    limit = limit_mb or settings.max_upload_mb
     data = await file.read()
-    if len(data) > settings.max_upload_mb * 1024 * 1024:
-        raise HTTPException(status_code=413, detail=f"Files larger than {settings.max_upload_mb} MB aren't accepted")
+    if len(data) > limit * 1024 * 1024:
+        raise HTTPException(status_code=413, detail=f"Files larger than {limit} MB aren't accepted")
     if not data:
         raise HTTPException(status_code=400, detail="The file is empty")
     return data
@@ -53,9 +63,21 @@ def health() -> dict:
             "pdfa": pdfa.ghostscript() is not None,
             "validate": pdfa.verapdf() is not None,
             "tables": True,
+            "transcribe": transcribe.installed(),
         },
         "auth": bool(settings.token),
     }
+
+
+@app.post("/transcribe", dependencies=[Depends(require_token)])
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    language: str | None = Query(None, pattern=r"^[a-z]{2,3}$", description="e.g. en; blank = detect"),
+) -> dict:
+    """Vonu Minutes: a meeting recording → text with timed segments. Nothing is kept."""
+    data = await read_upload(file, settings.max_audio_mb)
+    # Transcription is CPU-bound and can take minutes; keep the event loop free.
+    return await run_in_threadpool(transcriber.transcribe, data, transcribe.safe_suffix(file.filename), language)
 
 
 class PagesIn(BaseModel):
