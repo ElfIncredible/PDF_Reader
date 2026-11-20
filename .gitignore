@@ -10,3 +10,4 @@
 .cxx/
 .env
 __pycache__/
+.archify/
