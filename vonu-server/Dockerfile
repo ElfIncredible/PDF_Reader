@@ -13,8 +13,11 @@ COPY app ./app
 
 # Run as a normal user, not root.
 # The speech-model cache must exist and belong to vonu, or the docker-compose volume mounts root-owned.
+# So must the sync folder, which holds the Vonu Minutes meetings shared between phones.
 RUN useradd --create-home vonu \
-    && mkdir -p /home/vonu/.cache/huggingface && chown -R vonu /home/vonu/.cache
+    && mkdir -p /home/vonu/.cache/huggingface && chown -R vonu /home/vonu/.cache \
+    && mkdir -p /data/sync && chown -R vonu /data
+ENV SYNC_DIR=/data/sync
 USER vonu
 
 EXPOSE 8000

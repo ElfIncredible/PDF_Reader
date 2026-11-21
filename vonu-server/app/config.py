@@ -26,6 +26,8 @@ class Settings:
     whisper_compute: str = "int8"
     # Recordings are larger than documents: about 29 MB per hour from the app.
     max_audio_mb: int = 300
+    # Vonu Minutes sync between phones: where meetings and their attachment files are kept.
+    sync_dir: str = "sync-data"
 
 
 def load() -> Settings:
@@ -43,4 +45,5 @@ def load() -> Settings:
         whisper_device=env("WHISPER_DEVICE", "auto"),
         whisper_compute=env("WHISPER_COMPUTE", "int8"),
         max_audio_mb=int(env("MAX_AUDIO_MB", "300")),
+        sync_dir=env("SYNC_DIR", "sync-data"),
     )

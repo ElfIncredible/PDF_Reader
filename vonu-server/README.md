@@ -12,11 +12,17 @@ A small Python service that gives the Vonu PDF app the features a phone can't do
 | `POST /pdfa` | PDF → PDF/A-1b/2b/3b (Ghostscript, embedded sRGB profile); validated with veraPDF if installed (`X-Vonu-Validation` header) |
 | `POST /transcribe` | **Vonu Minutes:** meeting recording → text with timed segments (faster-whisper, on this machine; `?language=en` optional). The audio is deleted right after |
 | `POST /minutes/draft` | **Vonu Minutes:** agenda, attendees, transcript and notes → a first draft of the minutes as JSON (discussion per agenda item, decisions, actions with owners and dates). Claude's reply is schema-constrained; every value is re-checked. Nothing is stored |
+| `GET /sync/changes`, `PUT /sync/meetings/{id}`, `POST /sync/audit`, `PUT`/`GET /sync/files/{id}` | **Vonu Minutes:** meeting sync between phones. Each meeting is stored as one JSON document with a revision number; a phone writes only on top of the revision it last saw (otherwise `409` with the current copy, which the phone merges). Audit events are append-only; attachment files are stored by id. **This is the one feature that stores data:** in `SYNC_DIR` (Docker: the `sync` volume) |
 | `POST /minutes/summary` | **Vonu Minutes:** `{title, text}` (the minutes as Markdown, then any transcripts) → overview + key points (decisions, actions with owners). Uses the AI model below; nothing is stored |
 
 The app only sends **page text** for summaries and questions, and the **file** for tables,
 conversion and PDF/A. Nothing is stored: files go to a temporary folder that's deleted after
 each request.
+
+The exception is **Vonu Minutes sync**, which the app's Administrator turns on: the server then
+keeps every synced meeting, its attachment files and its audit trail in `SYNC_DIR`, so other
+phones can fetch them. Anyone with the token can read and change them, so use a long token and
+https outside your home network, and back the folder (or the `sync` Docker volume) up.
 
 ## Run it
 
@@ -66,6 +72,7 @@ app/tables.py   pdfplumber → rows → Excel
 app/transcribe.py  faster-whisper speech to text for Vonu Minutes
 app/minutes.py     AI summaries of Vonu Minutes meetings
 app/drafts.py      AI first drafts of Vonu Minutes (structured JSON)
+app/sync.py        Vonu Minutes sync between phones (SQLite + files, compare and set)
 app/convert.py  LibreOffice headless
 app/pdfa.py     Ghostscript PDF/A + optional veraPDF
 tests/          pytest (the LLM is faked; LibreOffice tests run if it's installed)

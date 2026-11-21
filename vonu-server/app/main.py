@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse, Response
+import os
+import uuid
+
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from fastapi.concurrency import run_in_threadpool
 
-from . import __version__, config, convert, drafts, minutes, pdfa, rag, tables, transcribe
+from . import __version__, config, convert, drafts, minutes, pdfa, rag, sync, tables, transcribe
 from .llm import LLMUnavailable, from_settings
 from .transcribe import TranscriberUnavailable
 
@@ -66,6 +69,7 @@ def health() -> dict:
             "transcribe": transcribe.installed(),
             "minutes_summary": settings.llm_provider != "none",
             "minutes_draft": settings.llm_provider != "none",
+            "sync": True,
         },
         "auth": bool(settings.token),
     }
@@ -80,6 +84,75 @@ async def transcribe_audio(
     data = await read_upload(file, settings.max_audio_mb)
     # Transcription is CPU-bound and can take minutes; keep the event loop free.
     return await run_in_threadpool(transcriber.transcribe, data, transcribe.safe_suffix(file.filename), language)
+
+
+# ---- Vonu Minutes: meeting sync between phones (see sync.py) ----
+
+_store: sync.SyncStore | None = None
+
+
+def store() -> sync.SyncStore:
+    global _store
+    if _store is None:
+        _store = sync.SyncStore(settings.sync_dir)
+    return _store
+
+
+@app.get("/sync/changes", dependencies=[Depends(require_token)])
+def sync_changes(since: int = Query(0, ge=0), limit: int = Query(200, ge=1, le=500)) -> dict:
+    return store().changes(since, limit)
+
+
+class MeetingDocIn(BaseModel):
+    base: int | None = Field(None, description="The revision this copy was made from; null for a new meeting")
+    doc: dict
+
+
+@app.put("/sync/meetings/{meeting_id}", dependencies=[Depends(require_token)])
+def sync_put_meeting(meeting_id: str, body: MeetingDocIn):
+    try:
+        return store().put_meeting(meeting_id, body.base, body.doc)
+    except sync.Conflict as c:
+        return JSONResponse(status_code=409, content={"detail": str(c), "rev": c.rev, "doc": c.doc})
+
+
+class AuditIn(BaseModel):
+    events: list[dict] = Field(..., max_length=1000)
+
+
+@app.post("/sync/audit", dependencies=[Depends(require_token)])
+def sync_audit(body: AuditIn) -> dict:
+    return {"added": store().add_audit(body.events)}
+
+
+@app.put("/sync/files/{file_id}", dependencies=[Depends(require_token)])
+async def sync_put_file(file_id: str, request: Request) -> dict:
+    """An attachment's bytes, streamed to disk (recordings can be hundreds of MB)."""
+    target = store().file_path(file_id)
+    limit = max(settings.max_audio_mb, settings.max_upload_mb) * 1024 * 1024
+    part = target.with_name(f".{file_id}.{uuid.uuid4().hex}.part")
+    size = 0
+    try:
+        with open(part, "wb") as out:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > limit:
+                    raise HTTPException(status_code=413, detail=f"Files larger than {limit // 1024 // 1024} MB aren't accepted")
+                out.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=400, detail="The file is empty")
+        os.replace(part, target)
+    finally:
+        part.unlink(missing_ok=True)
+    return {"size": size}
+
+
+@app.get("/sync/files/{file_id}", dependencies=[Depends(require_token)])
+def sync_get_file(file_id: str):
+    path = store().file_path(file_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Not uploaded yet")
+    return FileResponse(path, media_type="application/octet-stream")
 
 
 class PagesIn(BaseModel):

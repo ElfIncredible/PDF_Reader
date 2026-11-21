@@ -14,6 +14,8 @@ services:
     volumes:
       # The speech model downloads once (small ~500 MB) and is kept across restarts.
       - whisper:/home/vonu/.cache/huggingface
+      # Vonu Minutes sync between phones: the meetings and their files. Back this volume up.
+      - sync:/data/sync
 
   ollama:
     image: ollama/ollama
@@ -29,3 +31,4 @@ services:
 volumes:
   ollama:
   whisper:
+  sync:

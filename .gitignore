@@ -11,3 +11,6 @@
 .env
 __pycache__/
 .archify/
+
+# Vonu Minutes sync data from local server runs
+vonu-server/sync-data/
