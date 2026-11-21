@@ -50,6 +50,28 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 pytest -q
 ```
 
+**Update to a new version** (on the server, in `vonu-server/`). Your `.env` and the volumes
+(models, speech model, synced meetings) are kept:
+```bash
+git pull
+docker compose up -d --build
+docker compose ps                 # both services "running"
+curl http://localhost:8000/health
+curl -H "Authorization: Bearer <your VONU_TOKEN>" "http://localhost:8000/sync/changes?since=0"
+```
+The last command should return JSON. `404` means the old build is still running; `401` means the
+token doesn't match `.env`.
+
+**Back up the synced meetings** (the `sync` volume is the server's only copy of them):
+```bash
+docker volume ls                  # the name is <folder>_sync, usually vonu-server_sync
+docker run --rm -v vonu-server_sync:/data -v "$PWD":/backup alpine \
+  tar czf /backup/sync-$(date +%F).tgz -C /data .
+```
+Restore into a stopped server (`docker compose down`) with
+`docker run --rm -v vonu-server_sync:/data -v "$PWD":/backup alpine tar xzf /backup/sync-<date>.tgz -C /data`,
+then `docker compose up -d`.
+
 ## Connect the app
 1. Phone and computer on the same Wi-Fi. Find the computer's IP (`ipconfig` on Windows), e.g. `192.168.1.20`.
 2. Vonu → Settings → **Vonu server** → address `http://192.168.1.20:8000`, token = your `VONU_TOKEN` → **Test connection**.
